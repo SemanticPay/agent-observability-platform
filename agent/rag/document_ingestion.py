@@ -99,14 +99,3 @@ class DocumentIngester:
                 
         return documents
 
-
-if __name__ == "__main__":
-    from config import DOCUMENT_URLS
-    
-    ingester = DocumentIngester()
-    documents = ingester.fetch_all_documents(DOCUMENT_URLS)
-    
-    print(f"\nFetched {len(documents)} documents:")
-    for doc in documents:
-        print(f"- {doc['title']} ({len(doc['content'])} characters)")
-
