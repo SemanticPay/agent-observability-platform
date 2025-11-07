@@ -28,6 +28,8 @@ class DriversLicenseAgent:
     def _ingest_documents(self) -> None:
         """Ingest all configured documents into the RAG pipeline."""
         logger.info("Ingesting documents into RAG pipeline...")
+        # TODO: handle ingestion errors
+        # TODO: pass urls upon class initialization
         documents = self.ingester.fetch_all_documents(config.DOCUMENT_URLS)
         
         if documents:
@@ -72,6 +74,7 @@ def main():
     # Initialize agent (don't auto-ingest, let user control it)
     agent = DriversLicenseAgent(ingest_on_init=False)
     
+    # TODO: use a command-line interface library like argparse or click
     if len(sys.argv) > 1:
         if sys.argv[1] == "ingest":
             # Ingest documents
@@ -121,5 +124,6 @@ def main():
 
 
 if __name__ == "__main__":
+    # TODO: use ADK and proper agent chain. the drivers license agent has the "retrieve" functionality as one of its tools
     main()
 

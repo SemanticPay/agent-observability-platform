@@ -12,6 +12,13 @@ VERTEX_AI_LOCATION = os.getenv("VERTEX_AI_LOCATION", "us-central1")
 # Vertex AI RAG Configuration
 # Can be either a Vertex AI Vector Search index ID or a Vertex AI Search datastore ID
 RAG_DATASTORE_ID = os.getenv("RAG_DATASTORE_ID")
+
+# Vector Search specific configuration (required if using Vector Search)
+# These should be set if you're using Vertex AI Vector Search instead of Discovery Engine
+VECTOR_SEARCH_INDEX_ID = os.getenv("VECTOR_SEARCH_INDEX_ID")  # The index ID
+VECTOR_SEARCH_ENDPOINT_ID = os.getenv("VECTOR_SEARCH_ENDPOINT_ID")  # The deployed endpoint ID
+VECTOR_SEARCH_GCS_BUCKET = os.getenv("VECTOR_SEARCH_GCS_BUCKET")  # Optional: for batch updates
+
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "textembedding-gecko@003")
 
 # Document URLs to ingest

@@ -30,6 +30,7 @@ class DocumentIngester:
         """
         try:
             logger.info(f"Fetching document from: {url}")
+            # TODO: use headers from attrs
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
@@ -48,6 +49,7 @@ class DocumentIngester:
             # Clean up the text
             text_content = self._clean_text(text_content)
             
+            # TODO: use a pydantic model (here and wherever documents are used)
             return {
                 'url': url,
                 'title': title_text,
