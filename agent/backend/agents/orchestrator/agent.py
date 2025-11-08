@@ -17,6 +17,7 @@ if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
 from agent.backend.agents.drivers_license.agent import drivers_license_agent
+from agent.backend.agents.scheduler.agent import scheduler_agent
 from agent.backend.agents.orchestrator.prompt import PROMPT
 from agent.backend.types.types import AgentCallRequest, AgentCallResponse, FunctionPayload
 
@@ -41,6 +42,7 @@ ORCHESTRATOR_AGENT = Agent(
     instruction=PROMPT,
     sub_agents=[
         drivers_license_agent,
+        scheduler_agent,
     ],
 )
 logger.info("orchestrator-agent created successfully")
