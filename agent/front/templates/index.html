@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistente de Renovação de Carteira de Motorista</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚗 Assistente de Renovação de Carteira</h1>
+            <p class="subtitle">Sua ajuda para questões sobre renovação de CNH em São Paulo</p>
+        </header>
+
+        <div class="chat-container">
+            <div id="chat-messages" class="chat-messages">
+                <div class="message bot-message">
+                    <div class="message-content">
+                        <p>Olá! Sou seu assistente para questões sobre renovação de carteira de motorista. Como posso ajudá-lo hoje?</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input-container">
+                <form id="chat-form">
+                    <input 
+                        type="text" 
+                        id="user-input" 
+                        placeholder="Digite sua pergunta aqui..." 
+                        autocomplete="off"
+                        required
+                    >
+                    <button type="submit" id="send-button">
+                        <span>Enviar</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="examples">
+            <h3>Exemplos de perguntas:</h3>
+            <div class="example-buttons">
+                <button class="example-btn" data-question="Preciso fazer exame médico para renovar minha carteira?">
+                    Preciso fazer exame médico?
+                </button>
+                <button class="example-btn" data-question="Quais documentos são necessários para renovação?">
+                    Quais documentos preciso?
+                </button>
+                <button class="example-btn" data-question="Posso renovar minha carteira online?">
+                    Posso renovar online?
+                </button>
+                <button class="example-btn" data-question="Tenho 58 anos e tirei minha carteira há 8 anos. Posso renovar online ou preciso de exame médico?">
+                    Tenho 58 anos, posso renovar online?
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
+

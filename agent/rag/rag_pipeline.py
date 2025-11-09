@@ -9,6 +9,11 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 import json
 import time
+import sys
+import os
+
+# Add parent directory to path for config import
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 # Try importing VertexAIVectorSearch from the correct location
 try:
@@ -20,7 +25,12 @@ except ImportError:
         # If not available, we'll use Discovery Engine only
         VertexAIVectorSearch = None
 
-import config
+from config import (
+    GOOGLE_CLOUD_PROJECT,
+    VERTEX_AI_LOCATION,
+    RAG_DATASTORE_ID,
+    EMBEDDING_MODEL
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,12 +42,12 @@ class VertexAIRAGPipeline:
     def __init__(self):
         """Initialize the RAG pipeline with Vertex AI components."""
         aiplatform.init(
-            project=config.GOOGLE_CLOUD_PROJECT,
-            location=config.VERTEX_AI_LOCATION
+            project=GOOGLE_CLOUD_PROJECT,
+            location=VERTEX_AI_LOCATION
         )
         
         self.embeddings = VertexAIEmbeddings(
-            model_name=config.EMBEDDING_MODEL
+            model_name=EMBEDDING_MODEL
         )
         
         self.llm = VertexAI(
@@ -52,10 +62,10 @@ class VertexAIRAGPipeline:
             length_function=len,
         )
         
-        self.datastore_id = config.RAG_DATASTORE_ID
+        self.datastore_id = RAG_DATASTORE_ID
         self.datastore_path = (
-            f"projects/{config.GOOGLE_CLOUD_PROJECT}/"
-            f"locations/{config.VERTEX_AI_LOCATION}/"
+            f"projects/{GOOGLE_CLOUD_PROJECT}/"
+            f"locations/{VERTEX_AI_LOCATION}/"
             f"dataStores/{self.datastore_id}"
         )
         
@@ -89,8 +99,8 @@ class VertexAIRAGPipeline:
         if VertexAIVectorSearch is not None:
             try:
                 vector_store = VertexAIVectorSearch(
-                    project_id=config.GOOGLE_CLOUD_PROJECT,
-                    location=config.VERTEX_AI_LOCATION,
+                    project_id=GOOGLE_CLOUD_PROJECT,
+                    location=VERTEX_AI_LOCATION,
                     index_id=self.datastore_id,
                     embedding=self.embeddings,
                 )
@@ -137,8 +147,8 @@ class VertexAIRAGPipeline:
             )
             
             parent = (
-                f"projects/{config.GOOGLE_CLOUD_PROJECT}/"
-                f"locations/{config.VERTEX_AI_LOCATION}/"
+                f"projects/{GOOGLE_CLOUD_PROJECT}/"
+                f"locations/{VERTEX_AI_LOCATION}/"
                 f"dataStores/{self.datastore_id}/branches/default_branch"
             )
             
@@ -170,8 +180,8 @@ class VertexAIRAGPipeline:
         if VertexAIVectorSearch is not None:
             try:
                 vector_store = VertexAIVectorSearch(
-                    project_id=config.GOOGLE_CLOUD_PROJECT,
-                    location=config.VERTEX_AI_LOCATION,
+                    project_id=GOOGLE_CLOUD_PROJECT,
+                    location=VERTEX_AI_LOCATION,
                     index_id=self.datastore_id,
                     embedding=self.embeddings,
                 )
@@ -204,8 +214,8 @@ class VertexAIRAGPipeline:
         client = discoveryengine.SearchServiceClient()
         
         serving_config = (
-            f"projects/{config.GOOGLE_CLOUD_PROJECT}/"
-            f"locations/{config.VERTEX_AI_LOCATION}/"
+            f"projects/{GOOGLE_CLOUD_PROJECT}/"
+            f"locations/{VERTEX_AI_LOCATION}/"
             f"dataStores/{self.datastore_id}/"
             f"servingConfigs/default_search"
         )
@@ -277,25 +287,4 @@ Forneça uma resposta clara, precisa e útil baseada nas informações legais fo
         except Exception as e:
             logger.error(f"Error generating answer: {e}")
             raise
-
-
-if __name__ == "__main__":
-    # Test the RAG pipeline
-    from document_ingestion import DocumentIngester
-    from config import DOCUMENT_URLS
-    
-    # Fetch documents
-    ingester = DocumentIngester()
-    documents = ingester.fetch_all_documents(DOCUMENT_URLS)
-    
-    # Ingest into RAG pipeline
-    rag = VertexAIRAGPipeline()
-    rag.ingest_documents(documents)
-    
-    # Test query
-    test_query = "Preciso fazer exame médico para renovar minha carteira?"
-    context = rag.retrieve_relevant_context(test_query)
-    answer = rag.generate_answer(test_query, context)
-    print(f"\nQuery: {test_query}")
-    print(f"\nAnswer: {answer}")
 

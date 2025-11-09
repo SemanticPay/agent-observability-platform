@@ -1,6 +1,32 @@
 # Driver's License Renewal Agent
 
-An AI agent that answers citizen questions about driver's license renewal, documentation, fees, and scheduling using Vertex AI RAG (Retrieval-Augmented Generation) pipeline.
+An AI agent system that answers citizen questions about driver's license renewal, documentation, fees, and scheduling using Vertex AI RAG (Retrieval-Augmented Generation) pipeline and Google ADK (Agent Development Kit).
+
+## Architecture
+
+The project follows a modular architecture with three main components:
+
+```
+agent/
+├── backend/          # Agent backend with orchestrator and sub-agents
+│   ├── agents/
+│   │   ├── orchestrator/    # Root agent that routes questions
+│   │   └── drivers_license/ # Specialized agent for driver's license questions
+│   └── types/        # Type definitions
+├── rag/              # RAG pipeline for document retrieval
+│   ├── document_ingestion.py
+│   └── rag_pipeline.py
+└── front/            # Web UI frontend
+    ├── app.py
+    ├── templates/
+    └── static/
+```
+
+### Agent Structure
+
+- **Orchestrator Agent**: Root agent that routes questions to appropriate sub-agents
+- **Drivers License Agent**: Specialized sub-agent that handles driver's license renewal questions using RAG
+- Each agent has its own `prompt.py` and `agent.py` file
 
 ## Features
 
@@ -8,11 +34,13 @@ An AI agent that answers citizen questions about driver's license renewal, docum
 - Uses Vertex AI RAG pipeline for document retrieval and generation
 - Ingests legal documents from official government sources
 - Provides accurate, context-aware answers based on legal documentation
+- Modern web UI for easy interaction
+- Modular agent architecture using Google ADK
 
 ## Prerequisites
 
 1. **Google Cloud Project** with Vertex AI enabled
-2. **Vertex AI Search (Enterprise Search)** datastore created
+2. **Vertex AI Search (Enterprise Search)** datastore or Vector Search index created
 3. **Service Account** with appropriate permissions:
    - Vertex AI User
    - Vertex AI Search Admin
@@ -85,40 +113,104 @@ See the [complete setup guide](VERTEX_AI_SETUP.md) for step-by-step instructions
 
 ### 1. Ingest Documents
 
-First, ingest the legal documents into the RAG pipeline:
+First, ingest the legal documents into the RAG pipeline. You can use the RAG pipeline directly:
 
-```bash
-python agent.py ingest
+```python
+from agent.rag.document_ingestion import DocumentIngester
+from agent.rag.rag_pipeline import VertexAIRAGPipeline
+from config import DOCUMENT_URLS
+
+# Fetch documents
+ingester = DocumentIngester()
+documents = ingester.fetch_all_documents(DOCUMENT_URLS)
+
+# Ingest into RAG pipeline
+rag = VertexAIRAGPipeline()
+rag.ingest_documents(documents)
 ```
 
-This will:
-- Fetch documents from the configured URLs
-- Process and chunk the documents
-- Store them in the Vertex AI RAG pipeline
+### 2. Run the Agent (CLI)
 
-### 2. Ask Questions
+Use the main entry point to test the agent:
 
-#### Interactive Mode:
 ```bash
-python agent.py
+python main.py "Preciso fazer exame médico para renovar minha carteira?"
 ```
 
-Then type your questions, or use commands:
-- `ingest` - Re-ingest documents
-- `quit` or `exit` - Exit the agent
-
-#### Command Line Mode:
+Or run interactively:
 ```bash
-python agent.py query "I'm 58 years old and got my driver's license eight years ago. Can I renew it online or do I need a medical test?"
+python main.py
 ```
 
-### Example Use Cases
+### 3. Run the Web UI
 
-- "Preciso fazer exame médico para renovar minha carteira?"
-- "Quais documentos são necessários para renovação?"
-- "Qual o valor da taxa de renovação?"
-- "Posso renovar minha carteira online?"
-- "Tenho 58 anos e tirei minha carteira há 8 anos. Posso renovar online ou preciso de exame médico?"
+Start the Flask frontend:
+
+```bash
+python run_frontend.py
+```
+
+Then open http://localhost:5000 in your browser.
+
+### 4. Use the Agent Programmatically
+
+```python
+import asyncio
+from agent.backend.agents.orchestrator.agent import call_agent
+from agent.backend.types.types import AgentCallRequest
+
+async def test_agent():
+    request = AgentCallRequest(
+        question="Preciso fazer exame médico para renovar minha carteira?",
+        session_id="test-session-1"
+    )
+    response = await call_agent(request)
+    print(response.answer)
+
+asyncio.run(test_agent())
+```
+
+## Project Structure
+
+```
+agent-workforce/
+├── agent/
+│   ├── backend/
+│   │   ├── agents/
+│   │   │   ├── orchestrator/
+│   │   │   │   ├── agent.py      # Orchestrator agent
+│   │   │   │   └── prompt.py     # Orchestrator prompt
+│   │   │   └── drivers_license/
+│   │   │       ├── agent.py      # Drivers license agent
+│   │   │       └── prompt.py     # Agent prompt
+│   │   └── types/
+│   │       └── types.py          # Type definitions
+│   ├── rag/
+│   │   ├── document_ingestion.py # Document fetching
+│   │   └── rag_pipeline.py        # RAG pipeline
+│   └── front/
+│       ├── app.py                 # Flask app
+│       ├── templates/
+│       │   └── index.html         # UI template
+│       └── static/
+│           ├── css/
+│           │   └── style.css      # Styles
+│           └── js/
+│               └── app.js          # Frontend JS
+├── config.py                      # Configuration
+├── main.py                         # CLI entry point
+├── run_frontend.py                 # Frontend entry point
+├── requirements.txt                # Dependencies
+└── README.md                       # This file
+```
+
+## Document Sources
+
+The agent ingests documents from:
+- Lei 15.266/2013 (São Paulo)
+- Código de Trânsito Brasileiro (Lei 9.503)
+- Resoluções do CONTRAN
+- Lei 13.296/2008 (São Paulo)
 
 ## Testing
 
@@ -130,8 +222,6 @@ Test document ingestion without needing Vertex AI credentials:
 python test_agent.py ingestion
 ```
 
-This will fetch and display the documents from the configured URLs.
-
 ### Full Test Suite
 
 Run all available tests:
@@ -139,11 +229,6 @@ Run all available tests:
 ```bash
 python test_agent.py
 ```
-
-This will test:
-1. Document ingestion (no credentials needed)
-2. Configuration loading
-3. RAG pipeline initialization (requires credentials)
 
 ### Individual Test Components
 
@@ -164,50 +249,6 @@ python test_agent.py full
 python test_agent.py query
 ```
 
-### Testing the Full Agent
-
-Once you have Vertex AI set up:
-
-1. **Ingest documents:**
-```bash
-python agent.py ingest
-```
-
-2. **Test with a query:**
-```bash
-python agent.py query "Preciso fazer exame médico para renovar minha carteira?"
-```
-
-3. **Interactive mode:**
-```bash
-python agent.py
-```
-
-Then type your questions directly.
-
-## Project Structure
-
-```
-agent-workforce/
-├── agent.py                 # Main agent entry point
-├── rag_pipeline.py          # Vertex AI RAG pipeline integration
-├── document_ingestion.py    # Document fetching and processing
-├── config.py                # Configuration management
-├── setup_verification.py    # Setup verification script
-├── requirements.txt         # Python dependencies
-├── .env.example            # Environment variables template
-├── .gitignore              # Git ignore rules
-└── README.md               # This file
-```
-
-## Document Sources
-
-The agent ingests documents from:
-- Lei 15.266/2013 (São Paulo)
-- Código de Trânsito Brasileiro (Lei 9.503)
-- Resoluções do CONTRAN
-- Lei 13.296/2008 (São Paulo)
-
 ## Troubleshooting
 
 ### Authentication Errors
@@ -218,12 +259,15 @@ The agent ingests documents from:
 - Verify `RAG_DATASTORE_ID` matches your Vertex AI Search datastore ID
 - Ensure the datastore exists in the specified location
 
-### Document Fetching Errors
-- Check internet connection
-- Some government sites may have rate limiting
-- Verify URLs are accessible
+### Import Errors
+- Make sure you're running from the project root directory
+- Check that all dependencies are installed: `pip install -r requirements.txt`
+- Verify Python path includes the project root
+
+### Google ADK Not Found
+- Install Google ADK: `pip install google-adk`
+- Check that you're using the correct version compatible with your Python version
 
 ## License
 
 This project is for educational/demonstration purposes.
-
