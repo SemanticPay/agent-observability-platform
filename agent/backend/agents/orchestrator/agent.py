@@ -2,7 +2,6 @@
 import asyncio
 import json
 import logging
-import os
 import sys
 from dotenv import load_dotenv
 from google.adk.agents import Agent
@@ -11,10 +10,6 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
-# Add root directory to path for imports
-root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))))
-if root_dir not in sys.path:
-    sys.path.insert(0, root_dir)
 
 from agent.backend.agents.drivers_license.agent import drivers_license_agent
 from agent.backend.agents.scheduler.agent import scheduler_agent
@@ -36,7 +31,7 @@ logger.info("Environment variables loaded")
 
 logger.info("Creating orchestrator-agent")
 ORCHESTRATOR_AGENT = Agent(
-    model="gemini-2.0-flash-exp",
+    model="gemini-2.5-flash",
     name="orchestrator_agent",
     description="A citizen services assistant orchestrator",
     instruction=PROMPT,
