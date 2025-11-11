@@ -93,11 +93,23 @@ gcloud auth application-default set-quota-project <project-id>
 
 ### Backend API (FastAPI)
 ```bash
+# From project root
 uvicorn agent.backend.main:app --reload
-# Server runs on http://localhost:8001
+# Server runs on http://localhost:8000
 ```
 
-### Frontend Web UI (Flask)
+### Frontend Web UI (React + Vite)
+```bash
+# Install dependencies (first time only)
+cd frontend
+npm install
+
+# Start development server
+npm run dev
+# Web UI available at http://localhost:3000
+```
+
+### Legacy Frontend (Flask)
 ```bash
 python run_frontend.py
 # Web UI available at http://localhost:5000
