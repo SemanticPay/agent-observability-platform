@@ -1,159 +1,138 @@
-# Driver's License Renewal Agent
+# Agent Observability Platform
 
-An AI agent system that answers citizen questions about driver's license renewal, documentation, fees, and scheduling using Vertex AI RAG (Retrieval-Augmented Generation) pipeline and Google ADK (Agent Development Kit).
+A multi-agent AI system for Brazilian driver's license renewal assistance, built with Google ADK (Agent Development Kit). The system uses a hierarchical agent architecture with an orchestrator routing queries to specialized sub-agents, powered by Vertex AI RAG for document retrieval.
 
 ## Architecture
 
-The project follows a modular architecture with three main components:
+The system follows a hierarchical multi-agent architecture:
+
+```
+orchestrator_agent (routes queries)
+├── drivers_license_agent (RAG-powered Q&A)
+│   └── Tool: get_drivers_license_context
+└── scheduler_agent (clinic search & booking)
+    └── Tools: geocode_location, search_nearby_clinics, book_exam
+```
+
+### Core Components
 
 ```
 agent/
-├── backend/          # Agent backend with orchestrator and sub-agents
-│   ├── agents/
-│   │   ├── orchestrator/    # Root agent that routes questions
-│   │   └── drivers_license/ # Specialized agent for driver's license questions
-│   └── types/        # Type definitions
-├── rag/              # RAG pipeline for document retrieval
-│   ├── document_ingestion.py
-│   └── rag_pipeline.py
-└── front/            # Web UI frontend
-    ├── app.py
-    ├── templates/
-    └── static/
+├── backend/
+│   ├── agents/           # Agent definitions (orchestrator + sub-agents)
+│   │   ├── orchestrator/ # Root agent that routes questions
+│   │   ├── drivers_license/ # RAG-powered license renewal Q&A
+│   │   └── scheduler/    # Clinic search and exam booking
+│   ├── tools/           # Tool implementations (callable by agents)
+│   ├── database/        # Mock database classes
+│   ├── rag/             # Vertex RAG pipeline
+│   ├── state/           # Shared state key constants
+│   ├── types/           # Pydantic models
+│   ├── photo/           # Vision API classification
+│   └── main.py          # FastAPI server
+└── front/               # Flask web UI
 ```
 
-### Agent Structure
-
-- **Orchestrator Agent**: Root agent that routes questions to appropriate sub-agents
-- **Drivers License Agent**: Specialized sub-agent that handles driver's license renewal questions using RAG
-- Each agent has its own `prompt.py` and `agent.py` file
-
-## Features
-
-- Answers questions about driver's license renewal in Brazil (São Paulo state)
-- Uses Vertex AI RAG pipeline for document retrieval and generation
-- Ingests legal documents from official government sources
-- Provides accurate, context-aware answers based on legal documentation
-- Modern web UI for easy interaction
-- Modular agent architecture using Google ADK
+**Key Features:**
+- Multi-agent orchestration using Google ADK
+- Vertex AI RAG with corpus-based document retrieval
+- Mock databases for demonstration (clinics, bookings, photos)
+- Photo classification using Google Vision API
+- Google Maps integration for clinic geocoding
 
 ## Prerequisites
 
-1. **Google Cloud Project** with Vertex AI enabled
-2. **Vertex AI Search (Enterprise Search)** datastore or Vector Search index created
-3. **Service Account** with appropriate permissions:
+1. **Google Cloud Project** with billing enabled
+2. **Required APIs enabled**:
+   - Vertex AI API (for Gemini models and RAG)
+   - Cloud Vision API (for photo classification)
+   - Google Maps API (for geocoding)
+3. **Service Account** with permissions:
    - Vertex AI User
-   - Vertex AI Search Admin
-   - Cloud Storage (if using GCS for document storage)
+   - Cloud Vision User
+   - Storage Admin (for RAG corpus)
 4. **Python 3.8+**
 
 ## Setup
 
-1. **Clone and navigate to the project:**
-```bash
-cd agent-workforce
-```
-
-2. **Create and activate a virtual environment:**
+1. **Create and activate virtual environment:**
 ```bash
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-3. **Install dependencies:**
+2. **Install dependencies:**
 ```bash
 pip install -r requirements.txt
 ```
 
-4. **Configure Google Cloud credentials:**
-   - Create a service account key in Google Cloud Console
-   - Download the JSON key file
-   - Set the path in your environment
-
-5. **Create `.env` file from `.env.example`:**
+3. **Configure environment variables:**
 ```bash
 cp .env.example .env
 ```
 
-6. **Edit `.env` with your configuration:**
+4. **Edit `.env` with your Google Cloud configuration:**
 ```env
-GOOGLE_CLOUD_PROJECT=your-project-id
-GOOGLE_APPLICATION_CREDENTIALS=path/to/your/service-account-key.json
-VERTEX_AI_LOCATION=us-central1
-RAG_DATASTORE_ID=your-datastore-id
-EMBEDDING_MODEL=textembedding-gecko@003
+GOOGLE_CLOUD_PROJECT_ID=your-project-id
+GCS_LOCATION=us-central1
+VERTEX_RAG_CORPUS=your-corpus-name
+GOOGLE_API_KEY=your-maps-api-key
+GCS_BUCKET_NAME=your-bucket-name
+VERTEX_AI_INDEX_ID=your-index-id
+VERTEX_AI_INDEX_ENDPOINT_ID=your-endpoint-id
+EMBEDDING_MODEL=text-embedding-005
 ```
 
-7. **Verify your setup:**
+5. **Authenticate with Google Cloud:**
 ```bash
-python setup_verification.py
+gcloud auth application-default login
+gcloud auth application-default set-quota-project <project-id>
 ```
 
-This will check:
-- Environment variables are set correctly
-- Google Cloud credentials are accessible
-- All required Python packages are installed
+## Running the System
 
-## Vertex AI Setup
-
-**📖 For detailed setup instructions, see [VERTEX_AI_SETUP.md](VERTEX_AI_SETUP.md)**
-
-Quick overview:
-
-1. **Create a Google Cloud Project** and enable billing
-2. **Enable APIs**: Vertex AI API, Vertex AI Search API
-3. **Create a Service Account** with Vertex AI User and Discovery Engine Admin roles
-4. **Download Service Account Key** (JSON file)
-5. **Create a Vector Search Index OR Enterprise Search Datastore**
-6. **Configure `.env`** with your project ID, credentials path, and datastore/index ID
-
-See the [complete setup guide](VERTEX_AI_SETUP.md) for step-by-step instructions.
-
-## Usage
-
-### 1. Ingest Documents
-
-First, ingest the legal documents into the RAG pipeline. You can use the RAG pipeline directly:
-
-```python
-from agent.rag.document_ingestion import DocumentIngester
-from agent.rag.rag_pipeline import VertexAIRAGPipeline
-from config import DOCUMENT_URLS
-
-# Fetch documents
-ingester = DocumentIngester()
-documents = ingester.fetch_all_documents(DOCUMENT_URLS)
-
-# Ingest into RAG pipeline
-rag = VertexAIRAGPipeline()
-rag.ingest_documents(documents)
-```
-
-### 2. Run the Agent (CLI)
-
-Use the main entry point to test the agent:
-
+### Backend API (FastAPI)
 ```bash
-python main.py "Preciso fazer exame médico para renovar minha carteira?"
+uvicorn agent.backend.main:app --reload
+# Server runs on http://localhost:8001
 ```
 
-Or run interactively:
-```bash
-python main.py
-```
-
-### 3. Run the Web UI
-
-Start the Flask frontend:
-
+### Frontend Web UI (Flask)
 ```bash
 python run_frontend.py
+# Web UI available at http://localhost:5000
 ```
 
-Then open http://localhost:5000 in your browser.
+### Direct Agent Testing
+```bash
+python -m agent.backend.agents.orchestrator.agent
+```
 
-### 4. Use the Agent Programmatically
+## Document Management
 
+### Ingest Legal Documents
+Documents must be manually ingested into the RAG corpus before first use:
+
+```python
+from agent.backend.rag.document_fetcher import DocumentFetcher
+from agent.backend.rag.rag_pipeline import _upload_to_corpus, RAG_CORPUS
+from config import DOCUMENT_URLS
+
+fetcher = DocumentFetcher()
+docs = fetcher.fetch_all_documents(DOCUMENT_URLS)
+for doc in docs:
+    _upload_to_corpus(RAG_CORPUS, doc)
+```
+
+**Document Sources:**
+- Lei 15.266/2013 (São Paulo)
+- Código de Trânsito Brasileiro (Lei 9.503)
+- Resoluções do CONTRAN
+- Lei 13.296/2008 (São Paulo)
+
+## API Usage
+
+### Programmatic Access
 ```python
 import asyncio
 from agent.backend.agents.orchestrator.agent import call_agent
@@ -170,103 +149,52 @@ async def test_agent():
 asyncio.run(test_agent())
 ```
 
-## Project Structure
+### REST API Endpoints
+- `POST /query` - Process user questions
+- `POST /upload-photo` - Upload and classify documents
 
-```
-agent-workforce/
-├── agent/
-│   ├── backend/
-│   │   ├── agents/
-│   │   │   ├── orchestrator/
-│   │   │   │   ├── agent.py      # Orchestrator agent
-│   │   │   │   └── prompt.py     # Orchestrator prompt
-│   │   │   └── drivers_license/
-│   │   │       ├── agent.py      # Drivers license agent
-│   │   │       └── prompt.py     # Agent prompt
-│   │   └── types/
-│   │       └── types.py          # Type definitions
-│   ├── rag/
-│   │   ├── document_ingestion.py # Document fetching
-│   │   └── rag_pipeline.py        # RAG pipeline
-│   └── front/
-│       ├── app.py                 # Flask app
-│       ├── templates/
-│       │   └── index.html         # UI template
-│       └── static/
-│           ├── css/
-│           │   └── style.css      # Styles
-│           └── js/
-│               └── app.js          # Frontend JS
-├── config.py                      # Configuration
-├── main.py                         # CLI entry point
-├── run_frontend.py                 # Frontend entry point
-├── requirements.txt                # Dependencies
-└── README.md                       # This file
-```
+## Key Technologies
 
-## Document Sources
-
-The agent ingests documents from:
-- Lei 15.266/2013 (São Paulo)
-- Código de Trânsito Brasileiro (Lei 9.503)
-- Resoluções do CONTRAN
-- Lei 13.296/2008 (São Paulo)
+- **Google ADK (Agent Development Kit)** - Multi-agent orchestration
+- **Vertex AI RAG** - Document retrieval with corpus-based chunking
+- **Gemini 2.5 Flash** - LLM for all agents
+- **FastAPI** - Backend REST API
+- **Flask** - Frontend web interface
+- **Google Cloud Vision API** - Document photo classification
+- **Google Maps API** - Location geocoding for clinic search
 
 ## Testing
 
-### Quick Test (No Vertex AI Setup Required)
-
-Test document ingestion without needing Vertex AI credentials:
+The system uses a custom testing script (no formal test framework):
 
 ```bash
-python test_agent.py ingestion
-```
-
-### Full Test Suite
-
-Run all available tests:
-
-```bash
+# Run all tests
 python test_agent.py
+
+# Individual test components
+python test_agent.py ingestion    # Test document ingestion
+python test_agent.py config       # Test configuration
+python test_agent.py rag          # Test RAG pipeline
+python test_agent.py full         # Full workflow (requires Vertex AI)
+python test_agent.py query        # Query only (assumes docs ingested)
 ```
 
-### Individual Test Components
+## Important Notes
+
+- **Mock Databases**: System uses in-memory mock databases for demonstration
+- **Portuguese Context**: Legal documents and user-facing prompts in Portuguese
+- **São Paulo Focus**: Geographic searches assume São Paulo state/city
+- **Manual Setup**: Documents must be ingested into RAG corpus before first use
+- **Google Cloud Dependency**: Requires active GCP project with proper APIs enabled
+
+## Authentication
+
+Use Google Cloud Application Default Credentials:
 
 ```bash
-# Test document ingestion only
-python test_agent.py ingestion
-
-# Test configuration
-python test_agent.py config
-
-# Test RAG pipeline initialization
-python test_agent.py rag
-
-# Test full workflow (requires Vertex AI datastore)
-python test_agent.py full
-
-# Test query only (assumes documents already ingested)
-python test_agent.py query
+gcloud auth application-default login
+gcloud auth application-default set-quota-project <project-id>
 ```
-
-## Troubleshooting
-
-### Authentication Errors
-- Ensure `GOOGLE_APPLICATION_CREDENTIALS` points to a valid service account key
-- Verify the service account has necessary permissions
-
-### Datastore Not Found
-- Verify `RAG_DATASTORE_ID` matches your Vertex AI Search datastore ID
-- Ensure the datastore exists in the specified location
-
-### Import Errors
-- Make sure you're running from the project root directory
-- Check that all dependencies are installed: `pip install -r requirements.txt`
-- Verify Python path includes the project root
-
-### Google ADK Not Found
-- Install Google ADK: `pip install google-adk`
-- Check that you're using the correct version compatible with your Python version
 
 ## License
 
