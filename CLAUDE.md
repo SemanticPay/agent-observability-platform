@@ -4,8 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## IMPORTANT
 
-For your answers, make sure you're brief, concise, up to date, follow best practices 
-and have a high bar of quality unless asked otherwise.
+ALWAYS, make sure you're VERY BRIEF AND CONCISE unless asked otherwise.
 
 ## Project Overview
 
