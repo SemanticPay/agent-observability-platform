@@ -4,6 +4,7 @@ from agent.backend.agents.scheduler.prompt import PROMPT
 from agent.backend.tools.scheduler import (
     search_nearby_clinics,
     book_exam,
+    geocode_location,
 )
 
 
@@ -13,6 +14,7 @@ scheduler_agent = Agent(
     description="Specialized agent for finding and booking exam slots (medical or driving) at verified clinics",
     instruction=PROMPT,
     tools=[
+        geocode_location,
         search_nearby_clinics,
         book_exam,
     ]

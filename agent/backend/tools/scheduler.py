@@ -115,6 +115,7 @@ def search_nearby_clinics(
             logger.error("No location found in tool context state")
             return []
         location = Location(**location_raw)
+        logger.info(f"Using location from state: {location}")
     else:
         # testing fallback
         location = Location(
@@ -124,6 +125,7 @@ def search_nearby_clinics(
             city='Abu Dhabi',
             state='Abu Dhabi'
         )
+        logger.info(f"Using fallback location: {location}")
     
 
     max_distance_km = 10000000.0 # TODO: make configurable
@@ -181,9 +183,11 @@ def book_exam(
     if tool_context:
         nearby_clinics_raw = tool_context.state.get(keys.NEARBY_CLINICS, [])
         nearby_clinics = [Clinic(**c) for c in nearby_clinics_raw]
+        logger.info(f"Retrieved {len(nearby_clinics)} nearby clinics from state")
     else:
         # testing fallback
         nearby_clinics = [CLINIC_DB.get_clinic(clinic_id)]
+        logger.info(f"Using fallback clinic data for clinic ID {clinic_id}")
     
     clinic = next((c for c in nearby_clinics if c.id == clinic_id), None)  # type: ignore
     if not clinic:
