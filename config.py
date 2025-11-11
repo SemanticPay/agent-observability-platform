@@ -4,15 +4,18 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Google Cloud Configuration
-GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
-GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-VERTEX_AI_LOCATION = os.getenv("VERTEX_AI_LOCATION", "us-central1")
+GOOGLE_CLOUD_PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT_ID", "UNKNOWN")
+GCS_LOCATION = os.getenv("GCS_LOCATION", "UNKNOWN")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "publishers/google/models/text-embedding-005")
+GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "UNKNOWN")
+VERTEX_AI_INDEX_ID = os.getenv("VERTEX_AI_INDEX_ID", "UNKNOWN")
+VERTEX_AI_INDEX_ENDPOINT_ID = os.getenv("VERTEX_AI_INDEX_ENDPOINT_ID", "UNKNOWN")
+VERTEX_RAG_CORPUS = os.getenv("VERTEX_RAG_CORPUS", "UNKNOWN")
 
-# Vertex AI RAG Configuration
-# Can be either a Vertex AI Vector Search index ID or a Vertex AI Search datastore ID
-RAG_DATASTORE_ID = os.getenv("RAG_DATASTORE_ID")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "textembedding-gecko@003")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+# Upload directory for photos
+UPLOAD_DIR = "/tmp/uploads"
 
 # Document URLs to ingest
 DOCUMENT_URLS = [
@@ -21,10 +24,3 @@ DOCUMENT_URLS = [
     "https://www.gov.br/transportes/pt-br/assuntos/transito/conteudo-Senatran/resolucoes-contran",
     "https://www.al.sp.gov.br/repositorio/legislacao/lei/2008/lei-13296-23.12.2008.html",
 ]
-
-# Validate required configuration
-if not GOOGLE_CLOUD_PROJECT:
-    raise ValueError("GOOGLE_CLOUD_PROJECT environment variable is required")
-if not RAG_DATASTORE_ID:
-    raise ValueError("RAG_DATASTORE_ID environment variable is required")
-
