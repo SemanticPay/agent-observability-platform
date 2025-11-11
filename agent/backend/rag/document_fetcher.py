@@ -2,14 +2,19 @@
 import requests
 from bs4 import BeautifulSoup
 import html2text
-from typing import List, Dict
 import logging
 
-logging.basicConfig(level=logging.INFO)
+from agent.backend.rag.types import Document
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
 logger = logging.getLogger(__name__)
 
 
-class DocumentIngester:
+class DocumentFetcher:
     """Handles fetching and processing documents from URLs."""
     
     def __init__(self):
@@ -17,8 +22,11 @@ class DocumentIngester:
         self.html_converter.ignore_links = False
         self.html_converter.ignore_images = True
         self.html_converter.body_width = 0  # Don't wrap lines
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
         
-    def fetch_document(self, url: str) -> Dict[str, str]:
+    def fetch_document(self, url: str) -> Document:
         """
         Fetch a document from a URL and extract its content.
         
@@ -26,33 +34,28 @@ class DocumentIngester:
             url: The URL to fetch
             
         Returns:
-            Dictionary with 'url', 'title', and 'content' keys
+            Document describing the fetched document
         """
         try:
             logger.info(f"Fetching document from: {url}")
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-            response = requests.get(url, headers=headers, timeout=30)
+            response = requests.get(url, headers=self.headers, timeout=30)
             response.raise_for_status()
             
-            soup = BeautifulSoup(response.content, 'lxml')
+            soup = BeautifulSoup(response.content, "lxml")
             
-            # Extract title
-            title = soup.find('title')
+            title = soup.find("title")
             title_text = title.get_text().strip() if title else url
             
-            # Convert HTML to clean text
             text_content = self.html_converter.handle(str(soup))
             
-            # Clean up the text
             text_content = self._clean_text(text_content)
             
-            return {
-                'url': url,
-                'title': title_text,
-                'content': text_content
-            }
+            return Document(
+                source_url=url,
+                title=title_text,
+                content=text_content
+            )
+
             
         except requests.RequestException as e:
             logger.error(f"Error fetching {url}: {e}")
@@ -76,7 +79,7 @@ class DocumentIngester:
             
         return cleaned
     
-    def fetch_all_documents(self, urls: List[str]) -> List[Dict[str, str]]:
+    def fetch_documents(self, urls: list[str]) -> list[Document]:
         """
         Fetch all documents from a list of URLs.
         
@@ -84,18 +87,34 @@ class DocumentIngester:
             urls: List of URLs to fetch
             
         Returns:
-            List of document dictionaries
+            List of documents
         """
-        documents = []
+        documents: list[Document] = []
         for url in urls:
             try:
                 doc = self.fetch_document(url)
                 documents.append(doc)
-                logger.info(f"Successfully fetched: {doc['title']}")
+                logger.info(f"Successfully fetched: {doc.title}")
             except Exception as e:
                 logger.error(f"Failed to fetch {url}: {e}")
                 # Continue with other documents even if one fails
                 continue
                 
         return documents
+
+
+if __name__ == "__main__":
+    from config import DOCUMENT_URLS
+    
+    fetcher = DocumentFetcher()
+    
+    logger.info(f"Fetching {len(DOCUMENT_URLS[:3])} documents...")
+    documents = fetcher.fetch_documents(DOCUMENT_URLS[:3])
+    logger.info(f"Successfully fetched {len(documents)} documents")
+    
+    for doc in documents:
+        logger.info(f"- {doc.title} ({len(doc.content)} chars)")
+
+    
+
 
