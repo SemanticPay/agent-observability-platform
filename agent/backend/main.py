@@ -179,8 +179,8 @@ async def upload_photo(file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     logger.info("="*60)
-    logger.info("Starting Shopping Agent API Server")
+    logger.info("Starting Agent API Server")
     logger.info("="*60)
-    logger.info("Running server on http://0.0.0.0:8001")
+    logger.info("Running server on http://0.0.0.0:8000")
     # Run the server
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

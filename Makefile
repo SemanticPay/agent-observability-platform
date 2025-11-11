@@ -1,0 +1,37 @@
+.PHONY: install
+install: install-backend install-frontend
+	@echo "✓ All dependencies installed"
+
+.PHONY: install-backend
+install-backend:
+	@echo "Installing Python backend dependencies..."
+	pip install -r requirements.txt
+
+.PHONY: install-frontend
+install-frontend:
+	@echo "Installing Node.js frontend dependencies..."
+	cd frontend && npm install
+
+.PHONY: backend
+backend:
+	@echo "Starting FastAPI backend on http://localhost:8000"
+	uvicorn agent.backend.main:app --reload --host 0.0.0.0 --port 8000
+
+.PHONY: frontend
+frontend:
+	@echo "Starting Vite frontend on http://localhost:5173"
+	cd frontend && npm run dev
+
+all:
+	@echo "Starting both backend and frontend..."
+	@make -j2 backend frontend
+
+# Clean generated files
+clean:
+	@echo "Cleaning generated files..."
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete
+	find . -type f -name "*.pyo" -delete
+	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+	cd frontend && rm -rf node_modules dist 2>/dev/null || true
+	@echo "✓ Cleaned"
