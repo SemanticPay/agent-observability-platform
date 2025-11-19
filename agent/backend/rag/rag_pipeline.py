@@ -49,46 +49,12 @@ def _get_or_create_corpus() -> rag.RagCorpus:
 
 
 RAG_CORPUS = _get_or_create_corpus()
-RAG_RETRIEVAL_CONFIG = rag.RagRetrievalConfig(
-    top_k=5,  # TODO: make configurable
-    filter=rag.Filter(vector_distance_threshold=0.5),  # TODO: make configurable
-)
 RAG_TRANSFORMATION_CONFIG = rag.TransformationConfig(
     chunking_config=rag.ChunkingConfig(
         chunk_size=1024,
         chunk_overlap=200,
     ),
 )
-
-
-def retrieve_context_for(query: str) -> str:
-    """Retrieve relevant context from the RAG corpus for a given query.
-    
-    Args:
-        query: The search query text
-        
-    Returns:
-        Formatted string containing retrieved contexts with source information
-    """
-    response = rag.retrieval_query(
-        rag_resources=[
-            rag.RagResource(
-                rag_corpus=RAG_CORPUS.name,
-            )
-        ],
-        text=query,
-        rag_retrieval_config=RAG_RETRIEVAL_CONFIG,
-    )
-
-    contexts = []
-    for ctx in response.contexts.contexts:
-        contexts.append(
-            f"source_uri: {ctx.source_uri}\n"
-            f"source_display_name: {ctx.source_display_name}\n"
-            f"{ctx.text}"
-        )
-
-    return "\n\n---\n\n".join(contexts)
 
 
 def _upload_to_corpus(corpus: rag.RagCorpus, doc: Document) -> None:
