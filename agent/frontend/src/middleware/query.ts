@@ -1,11 +1,11 @@
 let activeSessionId: string | undefined
 
 export async function queryAgent(question: string) {
-  const res = await fetch('http://0.0.0.0:8001/query', {
+  const res = await fetch('/query', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      question,
+      question: question,
       session_id: activeSessionId,
     }),
   })

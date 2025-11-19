@@ -10,7 +10,7 @@ install-backend:
 .PHONY: install-frontend
 install-frontend:
 	@echo "Installing Node.js frontend dependencies..."
-	cd frontend && npm install
+	cd agent/frontend && npm install
 
 .PHONY: backend
 backend:
@@ -20,7 +20,7 @@ backend:
 .PHONY: frontend
 frontend:
 	@echo "Starting Vite frontend on http://localhost:5173"
-	cd frontend && npm run dev
+	cd agent/frontend && npm run dev
 
 all:
 	@echo "Starting both backend and frontend..."
@@ -33,5 +33,5 @@ clean:
 	find . -type f -name "*.pyc" -delete
 	find . -type f -name "*.pyo" -delete
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
-	cd frontend && rm -rf node_modules dist 2>/dev/null || true
+	cd agent/frontend && rm -rf node_modules dist 2>/dev/null || true
 	@echo "✓ Cleaned"
