@@ -57,5 +57,15 @@
     server: {
       port: 3000,
       open: true,
-    },
+      proxy: {
+        '/query': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+        },
+        '/upload-photo': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+        }
+      }
+    }
   });
