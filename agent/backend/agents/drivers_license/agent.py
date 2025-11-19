@@ -2,7 +2,7 @@
 from google.adk.agents import Agent
 
 from agent.backend.agents.drivers_license.prompt import PROMPT
-from agent.backend.tools.drivers_license import ask_vertex_retrieval
+from agent.backend.tools.drivers_license import get_drivers_license_context
 
 
 drivers_license_agent = Agent(
@@ -11,7 +11,7 @@ drivers_license_agent = Agent(
     description="Specialized agent for answering driver's license renewal questions in São Paulo, Brazil",
     instruction=PROMPT,
     tools=[
-        ask_vertex_retrieval,
+        get_drivers_license_context,
     ]
 )
 
