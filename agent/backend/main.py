@@ -5,8 +5,9 @@ import uuid
 import os
 from pathlib import Path
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 import uvicorn
 from dotenv import load_dotenv
 
@@ -18,6 +19,8 @@ from agent.backend.types.types import (
 from agent.backend.database.photo import MockPhotoDatabase
 from agent.backend.photo.classification import classify_photo
 from config import UPLOAD_DIR
+
+# Note: CopilotKit integration simplified to avoid dependency conflicts
 
 
 logging.basicConfig(
@@ -175,6 +178,56 @@ async def upload_photo(file: UploadFile = File(...)):
     except Exception as e:
         logger.error(f"Error uploading photo: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error uploading photo: {str(e)}")
+
+
+# CopilotKit endpoint handler using a simpler approach
+@app.post("/api/copilotkit")
+async def copilotkit_endpoint(request: Request):
+    """CopilotKit-compatible endpoint that wraps our existing agent.
+    
+    This endpoint receives CopilotKit requests and adapts them to our agent interface.
+    """
+    try:
+        body = await request.json()
+        logger.info(f"CopilotKit request received: {body.keys()}")
+        
+        # Extract messages from CopilotKit request
+        messages = body.get("messages", [])
+        if not messages:
+            return {"error": "No messages provided"}
+        
+        # Get the last user message
+        last_message = messages[-1]
+        question = last_message.get("content", "") if isinstance(last_message, dict) else str(last_message)
+        
+        if not question:
+            return {"error": "No question in message"}
+        
+        logger.info(f"Processing CopilotKit question: {question}")
+        
+        # Get or create session ID
+        session_id = body.get("threadId") or str(uuid.uuid4())
+        
+        # Call our existing agent
+        agent_resp = await call_agent(
+            req=AgentCallRequest(
+                question=question,
+                session_id=session_id,
+            ),
+        )
+        
+        # Return CopilotKit-compatible response
+        return {
+            "messages": messages + [{
+                "role": "assistant",
+                "content": agent_resp.answer if agent_resp else "No response generated"
+            }],
+            "threadId": session_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in CopilotKit endpoint: {str(e)}", exc_info=True)
+        return {"error": f"Error processing request: {str(e)}"}
 
 
 if __name__ == "__main__":
