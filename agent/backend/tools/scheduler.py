@@ -10,6 +10,7 @@ from agent.backend.types.types import Booking, Clinic, ExamType, Location
 from google.adk.tools import ToolContext
 import googlemaps
 from config import GOOGLE_API_KEY
+from agent.backend.telemetry import tracer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,6 +31,7 @@ CLINIC_DB.connect()
 # TODO: db connection and disconnection handling
 
 
+@tracer.start_as_current_span("geocode_location")
 def geocode_location(location_query: str, tool_context: Optional[ToolContext] = None) -> Location:
     """
     Geocode a location query using Google Maps API.
@@ -90,6 +92,7 @@ def _calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> f
     return R * c
 
 
+@tracer.start_as_current_span("search_nearby_clinics")
 def search_nearby_clinics(
     exam_type: str,
     tool_context: Optional[ToolContext] = None,
@@ -152,6 +155,7 @@ def search_nearby_clinics(
     return nearby_clinics
    
 
+@tracer.start_as_current_span("book_exam")
 def book_exam(
     clinic_id: str,
     exam_type: str,

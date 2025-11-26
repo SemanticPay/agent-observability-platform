@@ -10,6 +10,7 @@ from config import (
     GCS_LOCATION,
     VERTEX_RAG_CORPUS,
 )
+from agent.backend.telemetry import tracer
 
 
 logging.basicConfig(
@@ -61,6 +62,7 @@ RAG_TRANSFORMATION_CONFIG = rag.TransformationConfig(
 )
 
 
+@tracer.start_as_current_span("retrieve_context_for")
 def retrieve_context_for(query: str) -> str:
     """Retrieve relevant context from the RAG corpus for a given query.
     
