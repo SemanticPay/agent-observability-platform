@@ -8,7 +8,8 @@ from datetime import datetime
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-from dotenv import load_dotenv
+from prometheus_client import make_asgi_app
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 from agent.backend.agents.orchestrator.agent import call_agent
 from agent.backend.types.types import (
@@ -17,6 +18,7 @@ from agent.backend.types.types import (
 )
 from agent.backend.database.photo import MockPhotoDatabase
 from agent.backend.photo.classification import classify_photo
+from agent.backend.prometheus_client import PrometheusClient
 from config import UPLOAD_DIR
 
 
@@ -36,6 +38,13 @@ app = FastAPI(
 )
 logger.info("FastAPI application initialized")
 
+# Create metrics endpoint
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+
+# Instrument FastAPI
+FastAPIInstrumentor.instrument_app(app)
+
 logger.info("Adding CORS middleware")
 app.add_middleware(
     CORSMiddleware,
@@ -49,6 +58,9 @@ logger.info("CORS middleware added successfully")
 # Initialize photo database
 photo_db = MockPhotoDatabase()
 photo_db.connect()
+
+# Initialize Prometheus client
+prometheus_client = PrometheusClient()
 
 # Create uploads directory
 PHOTO_UPLOAD_PATH = Path(UPLOAD_DIR)
@@ -175,6 +187,45 @@ async def upload_photo(file: UploadFile = File(...)):
     except Exception as e:
         logger.error(f"Error uploading photo: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error uploading photo: {str(e)}")
+
+
+@app.get("/api/metrics/summary")
+async def get_metrics_summary(time_range: str = "1h"):
+    """Get summary metrics from Prometheus."""
+    try:
+        summary = {
+            "total_cost": await prometheus_client.get_total_cost(time_range),
+            "total_tokens": await prometheus_client.get_total_tokens(time_range),
+            "total_tool_calls": await prometheus_client.get_total_tool_calls(time_range),
+            "avg_execution_duration": await prometheus_client.get_avg_execution_duration(time_range),
+            "time_range": time_range
+        }
+        return summary
+    except Exception as e:
+        logger.error(f"Error fetching metrics summary: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error fetching metrics: {str(e)}")
+
+
+@app.get("/api/metrics/by-agent")
+async def get_metrics_by_agent(time_range: str = "1h"):
+    """Get metrics grouped by agent."""
+    try:
+        metrics = await prometheus_client.get_metrics_by_agent(time_range)
+        return {"agents": metrics, "time_range": time_range}
+    except Exception as e:
+        logger.error(f"Error fetching agent metrics: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error fetching agent metrics: {str(e)}")
+
+
+@app.get("/api/metrics/time-series")
+async def get_metrics_time_series(hours: int = 24, step: str = "5m"):
+    """Get time series data for metrics."""
+    try:
+        time_series = await prometheus_client.get_metrics_time_series(hours, step)
+        return {"time_series": time_series, "hours": hours, "step": step}
+    except Exception as e:
+        logger.error(f"Error fetching time series: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error fetching time series: {str(e)}")
 
 
 if __name__ == "__main__":
