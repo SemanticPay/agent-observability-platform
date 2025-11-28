@@ -3,18 +3,27 @@ import asyncio
 import json
 import logging
 import sys
+import time
 from dotenv import load_dotenv
 from google.adk.agents import Agent
 from google.adk.artifacts.in_memory_artifact_service import InMemoryArtifactService
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
+from opentelemetry import trace
 
 
 from agent.backend.agents.drivers_license.agent import drivers_license_agent
 from agent.backend.agents.scheduler.agent import scheduler_agent
 from agent.backend.agents.orchestrator.prompt import PROMPT
 from agent.backend.types.types import AgentCallRequest, AgentCallResponse, FunctionPayload
+from agent.backend.telemetry import (
+    total_cost_counter,
+    total_tokens_counter,
+    tool_calls_counter,
+    execution_duration_histogram,
+    tracer
+)
 
 # Configure logging to stdout
 logging.basicConfig(
@@ -61,6 +70,7 @@ logger.info("Runner created successfully")
 user_id_to_session_id = {}
 
 
+@tracer.start_as_current_span("call_agent")
 async def call_agent(req: AgentCallRequest) -> AgentCallResponse:
     """Executes one turn of the agent with a query and full chat context."""
     logger.info("="*60)
@@ -68,7 +78,19 @@ async def call_agent(req: AgentCallRequest) -> AgentCallResponse:
     logger.info(f"Question: {req.question}")
     logger.info(f"Session ID: {req.session_id}")
     
+    start_time = time.time()
+    labels = {
+        "agent_id": ORCHESTRATOR_AGENT.name,
+        "model": ORCHESTRATOR_AGENT.model,
+        "customer_id": req.session_id or "unknown"
+    }
+    
     try:
+        span = trace.get_current_span()
+        if span.is_recording():
+            span.set_attribute("question", req.question)
+            span.set_attribute("session_id", req.session_id or "unknown")
+
         assert req.session_id, "Session ID must be provided"
 
         user_id = req.session_id
@@ -119,6 +141,25 @@ async def call_agent(req: AgentCallRequest) -> AgentCallResponse:
             author = event.author
             logger.debug(f"Event from author: {author}")
 
+            # Update labels with author if available
+            current_labels = labels.copy()
+            if author:
+                current_labels["agent_id"] = author
+
+            # Instrument tokens and cost
+            if hasattr(event, "usage_metadata") and event.usage_metadata:
+                input_tokens = event.usage_metadata.prompt_token_count or 0
+                output_tokens = event.usage_metadata.candidates_token_count or 0
+                total = event.usage_metadata.total_token_count or (input_tokens + output_tokens)
+                
+                total_tokens_counter.add(total, current_labels)
+                
+                # Cost calculation (approximate for Gemini 2.5 Flash)
+                # Input: $0.075 / 1M tokens
+                # Output: $0.30 / 1M tokens
+                cost = (input_tokens * 0.075 / 1_000_000) + (output_tokens * 0.30 / 1_000_000)
+                total_cost_counter.add(cost, current_labels)
+
             logger.debug("Extracting function calls and responses from event")
             function_calls = [
                 e.function_call for e in event.content.parts if e.function_call
@@ -134,6 +175,7 @@ async def call_agent(req: AgentCallRequest) -> AgentCallResponse:
                 full_response += text_response
 
             for func_call in function_calls:
+                tool_calls_counter.add(1, {**current_labels, "function_name": func_call.name}) #  type: ignore
                 logger.info(f"FUNC CALLS: [{author}]: {func_call.name}({json.dumps(func_call.args)})")
                 
             for func_resp in function_responses:
@@ -170,6 +212,9 @@ async def call_agent(req: AgentCallRequest) -> AgentCallResponse:
         logger.info("call_agent execution completed successfully")
         logger.info("="*60)
         
+        duration = time.time() - start_time
+        execution_duration_histogram.record(duration, labels)
+
         return response
     except Exception as e:
         logger.error(f"Error in call_agent: {str(e)}", exc_info=True)
