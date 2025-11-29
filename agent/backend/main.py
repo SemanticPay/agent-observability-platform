@@ -4,16 +4,21 @@ import time
 import uuid
 import os
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-from dotenv import load_dotenv
+from prometheus_client import make_asgi_app
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from agent.backend.prometheus.client import PrometheusClient
 
+from agent.backend.instrument import instrument
 from agent.backend.agents.orchestrator.agent import call_agent
 from agent.backend.types.types import (
     AgentCallRequest, QueryRequest, QueryResponse, 
-    Photo, PhotoUploadResponse
+    Photo, PhotoUploadResponse,
+    MetricsSummary, AgentMetrics, AgentMetricsResponse,
+    TimeSeriesPoint, TimeSeriesData, TimeSeriesResponse
 )
 from agent.backend.database.photo import MockPhotoDatabase
 from agent.backend.photo.classification import classify_photo
@@ -35,6 +40,18 @@ app = FastAPI(
     version="1.0.0",
 )
 logger.info("FastAPI application initialized")
+
+# Create metrics endpoint
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+
+# Instrument FastAPI
+FastAPIInstrumentor.instrument_app(app)
+
+prometheus_client = PrometheusClient()
+
+# Instrument ADK
+instrument()
 
 logger.info("Adding CORS middleware")
 app.add_middleware(
@@ -98,7 +115,7 @@ async def query_agent(request: QueryRequest):
         # TODO: handle function_payloads if needed
 
         logger.info("Agent response received")
-        logger.info(f"Agent answer: {agent_resp.answer if agent_resp else 'No response'}")
+        # logger.info(f"Agent answer: {agent_resp.answer if agent_resp else 'No response'}")
         logger.info(f"Function payloads count: {len(agent_resp.function_payloads) if agent_resp.function_payloads else 0}")
 
         logger.info("Building query response")
