@@ -1,6 +1,6 @@
 from typing import Optional
 from agent.backend.database.base import BaseDatabase
-from agent.backend.types.types import Clinic, ExamType
+from agent.backend.types.types import Clinic
 
 
 class MockClinicDatabase(BaseDatabase): 
@@ -12,7 +12,7 @@ class MockClinicDatabase(BaseDatabase):
                 address="Rua Domingos de Morais, 2564 - Vila Mariana, São Paulo - SP",
                 latitude=-23.5989,
                 longitude=-46.6345,
-                exam_types=[ExamType.MEDICAL, ExamType.DRIVING]
+                exam_types=["medical", "driving"]
             ),
             Clinic(
                 id="2",
@@ -20,7 +20,7 @@ class MockClinicDatabase(BaseDatabase):
                 address="Av. Moema, 170 - Moema, São Paulo - SP",
                 latitude=-23.6011,
                 longitude=-46.6624,
-                exam_types=[ExamType.MEDICAL]
+                exam_types=["medical"]
             ),
             Clinic(
                 id="3",
@@ -28,7 +28,7 @@ class MockClinicDatabase(BaseDatabase):
                 address="Rua Silva Bueno, 1822 - Ipiranga, São Paulo - SP",
                 latitude=-23.5943,
                 longitude=-46.6084,
-                exam_types=[ExamType.DRIVING]
+                exam_types=["driving"]
             ),
             Clinic(
                 id="4",
@@ -36,7 +36,7 @@ class MockClinicDatabase(BaseDatabase):
                 address="Rua Vergueiro, 1421 - Paraíso, São Paulo - SP",
                 latitude=-23.5777,
                 longitude=-46.6398,
-                exam_types=[ExamType.MEDICAL, ExamType.DRIVING]
+                exam_types=["medical", "driving"]
             ),
             Clinic(
                 id="5",
@@ -44,7 +44,7 @@ class MockClinicDatabase(BaseDatabase):
                 address="Rua França Pinto, 498 - Vila Mariana, São Paulo - SP",
                 latitude=-23.5912,
                 longitude=-46.6389,
-                exam_types=[ExamType.MEDICAL]
+                exam_types=["medical"]
             ),
         ]
         self.next_id = 6

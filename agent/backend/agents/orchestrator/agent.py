@@ -130,7 +130,7 @@ async def call_agent(req: AgentCallRequest) -> AgentCallResponse:
 
             if event.content.parts[0].text:
                 text_response = event.content.parts[0].text
-                logger.info(f"[{author}]: {text_response}")
+                # logger.info(f"[{author}]: {text_response}")
                 full_response += text_response
 
             for func_call in function_calls:
@@ -143,10 +143,10 @@ async def call_agent(req: AgentCallRequest) -> AgentCallResponse:
                     logger.warning(f"Empty function response for {func_resp.name}")
                     continue
 
-                logger.info(f"Processing function response for {func_resp.name} - {func_resp.response}")
+                # logger.info(f"Processing function response for {func_resp.name} - {func_resp.response}")
                 try:
                     func_payload = func_resp.response["result"]
-                    logger.info(f"FUNC RESPONSE: [{author}]: {func_resp.name} -> {func_payload}")
+                    # logger.info(f"FUNC RESPONSE: [{author}]: {func_resp.name} -> {func_payload}")
                 except Exception as e:
                     logger.error(f"Error parsing function response JSON: {str(e)}")
 

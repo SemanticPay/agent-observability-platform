@@ -6,7 +6,7 @@ from math import radians, sin, cos, sqrt, atan2
 from agent.backend.database.booking import MockBookingDatabase
 from agent.backend.database.clinic import MockClinicDatabase
 from agent.backend.state import keys
-from agent.backend.types.types import Booking, Clinic, ExamType, Location
+from agent.backend.types.types import Booking, Clinic, Location
 from google.adk.tools import ToolContext
 import googlemaps
 from config import GOOGLE_API_KEY
@@ -28,6 +28,12 @@ BOOKING_DB.connect()
 CLINIC_DB = MockClinicDatabase()
 CLINIC_DB.connect()
 # TODO: db connection and disconnection handling
+
+def validate_exam_type(exam_type: str) -> bool:
+    """Validate if the exam type is valid."""
+    if exam_type in ["medical", "driving"]:
+        return True
+    return False
 
 
 def geocode_location(location_query: str, tool_context: Optional[ToolContext] = None) -> Location:
@@ -103,9 +109,7 @@ def search_nearby_clinics(
     Returns:
         List of clinics with distance information
     """
-    try:
-        exam_type_enum = ExamType(exam_type)
-    except ValueError:
+    if not validate_exam_type(exam_type):
         logger.error(f"Invalid exam type: {exam_type}")
         return []
 
@@ -136,19 +140,21 @@ def search_nearby_clinics(
     for clinic in CLINIC_DB.get_all_clinics():
         if len(nearby_clinics) >= max_results:
             break
-        if exam_type_enum not in clinic.exam_types:
-            logger.info(f"Skipping clinic {clinic.name} as it does not offer exam type '{exam_type_enum}', but offers {clinic.exam_types}")
+        if exam_type not in clinic.exam_types:
+            logger.info(f"Skipping clinic {clinic.name} as it does not offer exam type '{exam_type}', but offers {clinic.exam_types}")
             continue
             
         distance = _calculate_distance(location.latitude, location.longitude, clinic.latitude, clinic.longitude)
         if distance <= max_distance_km:
             nearby_clinics.append(clinic.deepcopy())
+        else:
+            logger.info(f"Skipping clinic {clinic.name} as it is {distance:.2f} km away, exceeding max distance {max_distance_km} km")
     
     nearby_clinics.sort(key=lambda c: c.distance_km)
 
     if tool_context:
         tool_context.state[keys.NEARBY_CLINICS] = [c.model_dump() for c in nearby_clinics]
-    logger.info(f"Found {len(nearby_clinics)} nearby clinics for exam type '{exam_type_enum}'") 
+    logger.info(f"Found {len(nearby_clinics)} nearby clinics for exam type '{exam_type}'") 
     return nearby_clinics
    
 
@@ -171,13 +177,11 @@ def book_exam(
     Returns:
         Booking confirmation details
     """
-    try:
-        exam_type_enum = ExamType(exam_type)
-    except ValueError:
+    if not validate_exam_type(exam_type):
         logger.error(f"Invalid exam type: {exam_type}")
         return None
 
-    logger.info(f"Booking slot at clinic {clinic_id} for {exam_type_enum} on {datetime_str} for {citizen_name}")
+    logger.info(f"Booking slot at clinic {clinic_id} for {exam_type} on {datetime_str} for {citizen_name}")
 
     nearby_clinics = []
     if tool_context:
@@ -198,7 +202,7 @@ def book_exam(
     
     booking = Booking(
         clinic_id=clinic_id,
-        exam_type=exam_type_enum,
+        exam_type=exam_type,
         datetime=datetime.fromisoformat(datetime_str),
         citizen_name=citizen_name
     )
