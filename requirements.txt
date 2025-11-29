@@ -91,7 +91,7 @@ multidict==6.7.0
 mypy_extensions==1.1.0
 numexpr==2.14.1
 numpy==2.3.4
-opentelemetry-api==1.37.0
+opentelemetry-api
 opentelemetry-exporter-gcp-logging==1.11.0a0
 opentelemetry-exporter-gcp-monitoring==1.11.0a0
 opentelemetry-exporter-gcp-trace==1.11.0
@@ -99,8 +99,9 @@ opentelemetry-exporter-otlp-proto-common==1.37.0
 opentelemetry-exporter-otlp-proto-http==1.37.0
 opentelemetry-proto==1.37.0
 opentelemetry-resourcedetector-gcp==1.11.0a0
-opentelemetry-sdk==1.37.0
+opentelemetry-sdk
 opentelemetry-semantic-conventions==0.58b0
+opentelemetry-exporter-prometheus
 orjson==3.11.4
 ormsgpack==1.12.0
 packaging==25.0
@@ -150,3 +151,4 @@ xxhash==3.6.0
 yarl==1.22.0
 zipp==3.23.0
 zstandard==0.25.0
+opentelemetry-instrumentation-fastapi
