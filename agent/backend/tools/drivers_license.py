@@ -4,7 +4,7 @@ from typing import Optional
 from google.adk.tools import ToolContext
 from agent.backend.state.keys import DRIVERS_LICENSE_CONTEXT
 from agent.backend.rag.rag_pipeline import retrieve_context_for
-from agent.backend.telemetry import tracer
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -14,7 +14,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-@tracer.start_as_current_span("get_drivers_license_context")
 def get_drivers_license_context(question: str, tool_context: Optional[ToolContext] = None) -> str:
     """
     Retrieve relevant context from RAG pipeline for driver's license questions.

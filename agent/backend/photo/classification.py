@@ -1,13 +1,11 @@
 from google.cloud import vision
 
 from agent.backend.types.types import PhotoClassificationEnum
-from agent.backend.telemetry import tracer
 
 
 CLASSIFICATION_CLIENT = vision.ImageAnnotatorClient()
 
 
-@tracer.start_as_current_span("classify_photo")
 def classify_photo(image_bytes: bytes) -> PhotoClassificationEnum:
     """Classify a photo as passport, driving license, or unknown using OCR.
     
