@@ -22,6 +22,11 @@ frontend:
 	@echo "Starting Vite frontend on http://localhost:5173"
 	cd agent/frontend && npm run dev
 
+.PHONY: dashboard
+dashboard:
+	@echo "Starting dashboard..."
+	cd dashboard-ui && npm run dev
+
 all:
 	@echo "Starting both backend and frontend..."
 	@make -j2 backend frontend
