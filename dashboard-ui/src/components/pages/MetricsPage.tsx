@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useCopilotReadable } from "@copilotkit/react-core";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
 import { useMetricsSummary, useMetricsByAgent, useMetricsTimeSeries } from "../../hooks/useMetrics";
 import { 
@@ -13,6 +14,42 @@ export function MetricsPage() {
   const { data: summary, loading: summaryLoading, error: summaryError } = useMetricsSummary(timeRange);
   const { data: agentData, loading: agentLoading, error: agentError } = useMetricsByAgent(timeRange);
   const { data: timeSeries, loading: timeSeriesLoading, error: timeSeriesError } = useMetricsTimeSeries(24, "5m");
+
+  // Expose metrics summary to AI assistant
+  useCopilotReadable({
+    description: "Current metrics summary showing total cost, tokens, tool calls, and average execution duration",
+    value: summary ? {
+      totalCost: `$${summary.total_cost.toFixed(6)}`,
+      totalTokens: summary.total_tokens,
+      totalToolCalls: summary.total_tool_calls,
+      avgExecutionDuration: `${summary.avg_execution_duration.toFixed(2)} seconds`,
+      timeRange: timeRange
+    } : { status: "loading" }
+  });
+
+  // Expose agent-level metrics to AI assistant
+  useCopilotReadable({
+    description: "Metrics breakdown by agent including tokens used, tool calls, cost, and duration",
+    value: agentData?.length ? agentData.map(agent => ({
+      agentId: agent.agent_id,
+      tokens: agent.tokens,
+      toolCalls: agent.tool_calls,
+      cost: `$${agent.cost?.toFixed(6) || '0'}`,
+      avgDuration: `${agent.duration?.toFixed(2) || '0'} seconds`
+    })) : { status: "no agent data available" }
+  });
+
+  // Expose time series trends to AI assistant
+  useCopilotReadable({
+    description: "Token usage trends over the last 24 hours",
+    value: timeSeries?.time_series?.tokens?.length ? {
+      dataPoints: timeSeries.time_series.tokens.length,
+      recentTrend: timeSeries.time_series.tokens.slice(-10).map(t => ({
+        time: new Date(t.timestamp).toLocaleTimeString(),
+        tokensPerSecond: t.value
+      }))
+    } : { status: "no time series data available" }
+  });
 
   return (
     <div className="space-y-6 p-6">

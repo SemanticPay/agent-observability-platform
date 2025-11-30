@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { CopilotSidebar } from "@copilotkit/react-ui";
+import { useCopilotReadable } from "@copilotkit/react-core";
 import { OverviewPage } from "./components/pages/OverviewPage";
 import { PerformancePage } from "./components/pages/PerformancePage";
 import { ActivityPage } from "./components/pages/ActivityPage";
@@ -48,69 +50,89 @@ export default function App() {
 
   const CurrentPageComponent = pages[currentPage].component;
 
+  // Make the current page context available to the AI assistant
+  useCopilotReadable({
+    description: "Current dashboard page and navigation context",
+    value: {
+      currentPage: pages[currentPage]?.label || "Dashboard",
+      availablePages: pages.map(p => p.label),
+      pageDescription: "This is an AI agent observability dashboard showing metrics, costs, and performance data for AI agents."
+    }
+  });
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      {/* Navigation */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200">
-        <div className="max-w-[1800px] mx-auto px-8 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-              {pages.map((page, index) => {
-                const Icon = page.icon;
-                return (
-                  <button
-                    key={page.id}
-                    onClick={() => setCurrentPage(index)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${
-                      currentPage === index
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span className="text-sm">{page.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="text-xs text-slate-500">
-                {currentPage + 1} / {pages.length}
+    <CopilotSidebar
+      labels={{
+        title: "Dashboard AI Assistant",
+        initial: "Hi! I can help you understand your agent metrics and data. Ask me about costs, performance, token usage, or any insights from the dashboard.",
+        placeholder: "Ask about your data...",
+      }}
+      defaultOpen={false}
+      clickOutsideToClose={true}
+    >
+      <div className="min-h-screen bg-slate-50 text-slate-900">
+        {/* Navigation */}
+        <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200">
+          <div className="max-w-[1800px] mx-auto px-8 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+                {pages.map((page, index) => {
+                  const Icon = page.icon;
+                  return (
+                    <button
+                      key={page.id}
+                      onClick={() => setCurrentPage(index)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${
+                        currentPage === index
+                          ? "bg-white text-slate-900 shadow-sm"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span className="text-sm">{page.label}</span>
+                    </button>
+                  );
+                })}
               </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={prevPage}
-                  className="p-2 rounded-md text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={nextPage}
-                  className="p-2 rounded-md text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+              
+              <div className="flex items-center gap-3">
+                <div className="text-xs text-slate-500">
+                  {currentPage + 1} / {pages.length}
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={prevPage}
+                    className="p-2 rounded-md text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={nextPage}
+                    className="p-2 rounded-md text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Page Content */}
-      <div className="pt-20">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentPage}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            <CurrentPageComponent />
-          </motion.div>
-        </AnimatePresence>
+        {/* Page Content */}
+        <div className="pt-20">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentPage}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              <CurrentPageComponent />
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
-    </div>
+    </CopilotSidebar>
   );
 }
