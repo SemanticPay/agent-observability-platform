@@ -11,7 +11,7 @@ interface Message {
 }
 
 export default function CopilotKitPage() {
-  const [themeColor, setThemeColor] = useState("#6366f1");
+  const [themeColor, setThemeColor] = useState("#3b82f6");
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -88,23 +88,23 @@ export default function CopilotKitPage() {
   };
 
   return (
-    <div className="h-screen w-screen flex" style={{ backgroundColor: "#0f0f23" }}>
+    <div className="h-screen w-screen flex bg-gradient-to-br from-blue-50 to-white">
       {/* Main Content */}
       <div 
         className="flex-1 flex justify-center items-center p-8 transition-colors duration-500"
-        style={{ background: `linear-gradient(135deg, ${themeColor}40 0%, ${themeColor}20 100%)` }}
+        style={{ background: `linear-gradient(135deg, ${themeColor}15 0%, white 100%)` }}
       >
-        <div className="bg-white/10 backdrop-blur-xl p-8 rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20">
-          <h1 className="text-4xl font-bold text-white mb-2 text-center">
+        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-2xl w-full border border-blue-100">
+          <h1 className="text-4xl font-bold text-blue-600 mb-2 text-center">
             🚗 Driver's License Assistant
           </h1>
-          <p className="text-gray-300 text-center text-lg mb-6">
+          <p className="text-gray-500 text-center text-lg mb-6">
             Powered by Google ADK
           </p>
           
-          <div className="bg-white/10 p-5 rounded-2xl text-white">
-            <h2 className="text-xl font-semibold mb-3">How to Use</h2>
-            <ul className="space-y-2 text-gray-200 text-sm">
+          <div className="bg-blue-50 p-5 rounded-2xl">
+            <h2 className="text-xl font-semibold mb-3 text-blue-800">How to Use</h2>
+            <ul className="space-y-2 text-gray-600 text-sm">
               <li className="flex items-center gap-2">
                 <span>📄</span>
                 <span>Ask about driver's license renewal requirements</span>
@@ -123,28 +123,30 @@ export default function CopilotKitPage() {
       </div>
 
       {/* Chat Sidebar */}
-      <div className="w-[420px] bg-[#1a1a2e] border-l border-white/10 flex flex-col">
+      <div className="w-[420px] bg-white border-l border-blue-100 flex flex-col shadow-lg">
         {/* Header */}
-        <div className="p-4 border-b border-white/10 bg-[#16162a]">
+        <div className="p-4 border-b border-blue-100 bg-blue-600">
           <h2 className="text-white font-semibold text-lg">Agent Assistant</h2>
-          <p className="text-gray-400 text-xs">Ask me anything about driver's licenses</p>
+          <p className="text-blue-100 text-xs">Ask me anything about driver's licenses</p>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
           {messages.map((message) => (
             <div
               key={message.id}
               className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                  message.role === "user"
-                    ? "bg-indigo-600 text-white rounded-br-md"
-                    : "bg-[#252542] text-gray-100 rounded-bl-md"
-                }`}
+                className="max-w-[85%] rounded-2xl px-4 py-3 bg-white text-gray-800 shadow-sm border border-gray-200"
               >
-                <div className="prose prose-invert prose-sm max-w-none">
+                {message.role === "user" && (
+                  <p className="text-xs text-blue-600 font-medium mb-1">You</p>
+                )}
+                {message.role === "assistant" && (
+                  <p className="text-xs text-gray-500 font-medium mb-1">Assistant</p>
+                )}
+                <div className="prose prose-sm max-w-none">
                   <ReactMarkdown>{message.content}</ReactMarkdown>
                 </div>
               </div>
@@ -152,11 +154,11 @@ export default function CopilotKitPage() {
           ))}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-[#252542] text-gray-100 rounded-2xl rounded-bl-md px-4 py-3">
+              <div className="bg-white text-gray-800 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm border border-gray-100">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
-                  <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
-                  <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
                 </div>
               </div>
             </div>
@@ -165,7 +167,7 @@ export default function CopilotKitPage() {
         </div>
 
         {/* Input */}
-        <div className="p-4 border-t border-white/10 bg-[#16162a]">
+        <div className="p-4 border-t border-blue-100 bg-white">
           <div className="flex gap-2">
             <input
               type="text"
@@ -174,12 +176,12 @@ export default function CopilotKitPage() {
               onKeyPress={handleKeyPress}
               placeholder="Type a message..."
               disabled={isLoading}
-              className="flex-1 bg-[#252542] text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-500 disabled:opacity-50"
+              className="flex-1 bg-gray-50 text-gray-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 border border-gray-200 placeholder-gray-400 disabled:opacity-50"
             />
             <button
               onClick={sendMessage}
               disabled={isLoading || !input.trim()}
-              className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-xl px-4 py-3 transition-colors"
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl px-4 py-3 transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
