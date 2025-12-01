@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Sparkles } from "lucide-react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { useNavigate } from "react-router-dom"
@@ -39,6 +39,30 @@ export default function HomePage() {
           <div className="text-center space-y-4">
             <h1 className="text-black">How can I help you today?</h1>
             <p className="text-gray-600 max-w-xl mx-auto">I'll help you with your driver's license related questions.</p>
+            
+            <div className="flex justify-center gap-3 pt-2 flex-wrap">
+              <Button
+                onClick={() => navigate("/chat")}
+                variant="outline"
+                className="rounded-full px-6 h-10 border-gray-200 hover:border-[#B7B1F2] hover:bg-[#B7B1F2]/5"
+              >
+                Classic Chat
+              </Button>
+              <Button
+                onClick={() => navigate("/simple")}
+                className="rounded-full px-6 h-10 bg-gradient-to-r from-purple-600 to-pink-600 hover:shadow-lg hover:scale-105 transition-all text-white"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Modern Chat
+              </Button>
+              <Button
+                onClick={() => navigate("/copilot")}
+                variant="outline"
+                className="rounded-full px-6 h-10 border-gray-300 hover:border-gray-400 text-gray-600"
+              >
+                CopilotKit (Experimental)
+              </Button>
+            </div>
           </div>
 
           <div className="relative">
