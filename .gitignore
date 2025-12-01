@@ -38,3 +38,4 @@ Thumbs.db
 *.bak
 *.cache
 
+node_modules/
