@@ -5,12 +5,15 @@ import uuid
 import os
 from pathlib import Path
 from datetime import datetime, timedelta
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 import uvicorn
 from prometheus_client import make_asgi_app
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from agent.backend.prometheus.client import PrometheusClient
+from copilotkit.integrations.fastapi import add_fastapi_endpoint
+from copilotkit import CopilotKitRemoteEndpoint, Action
 
 from agent.backend.instrument import instrument
 from agent.backend.agents.orchestrator.agent import call_agent
@@ -67,13 +70,50 @@ logger.info("CORS middleware added successfully")
 photo_db = MockPhotoDatabase()
 photo_db.connect()
 
+# --- CopilotKit SDK Setup ---
+async def query_agent_handler(question: str) -> str:
+    """Process a user query through the orchestrator agent."""
+    import uuid
+    logger.info(f"CopilotKit action called with question: {question}")
+    try:
+        agent_resp = await call_agent(
+            req=AgentCallRequest(
+                question=question,
+                session_id=str(uuid.uuid4()),
+            ),
+        )
+        return agent_resp.answer if agent_resp and agent_resp.answer else "I couldn't generate a response."
+    except Exception as e:
+        logger.error(f"Error in CopilotKit action: {e}", exc_info=True)
+        return f"Error processing your question: {str(e)}"
+
+sdk = CopilotKitRemoteEndpoint(
+    actions=[
+        Action(
+            name="queryAgent",
+            description="Query the AI assistant for help with driver's license questions, scheduling appointments, and general assistance. Always use this action to respond to the user.",
+            handler=query_agent_handler,
+            parameters=[
+                {
+                    "name": "question",
+                    "type": "string",
+                    "description": "The user's question or request to process",
+                    "required": True
+                },
+            ]
+        ),
+    ],
+)
+
+add_fastapi_endpoint(app, sdk, "/query")
+
 # Create uploads directory
 PHOTO_UPLOAD_PATH = Path(UPLOAD_DIR)
 PHOTO_UPLOAD_PATH.mkdir(exist_ok=True)
 logger.info(f"Photo upload directory: {PHOTO_UPLOAD_PATH.absolute()}")
 
 
-@app.post("/query", response_model=QueryResponse)
+@app.post("/oldQuery", response_model=QueryResponse)
 async def query_agent(request: QueryRequest):
     """Process a user query through the orchestrator agent.
     

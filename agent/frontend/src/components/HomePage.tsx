@@ -5,6 +5,8 @@ import { Input } from "./ui/input"
 import { useNavigate } from "react-router-dom"
 import { queryAgent } from "../middleware/query"
 import { useChat } from "../context/ChatContext"
+import { CopilotPopup } from "@copilotkit/react-ui"
+import { useCopilotReadable } from "@copilotkit/react-core"
 
 
 export default function HomePage() {
@@ -12,6 +14,21 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const { addMessage } = useChat()
+
+  // Make context available to CopilotKit
+  useCopilotReadable({
+    description: "Current page and application context",
+    value: {
+      page: "Home Page",
+      appDescription: "This is a driver's license assistant application that helps users with driver's license related questions, scheduling appointments, and uploading documents.",
+      capabilities: [
+        "Answer driver's license related questions",
+        "Help schedule appointments",
+        "Assist with document uploads",
+        "Provide information about requirements"
+      ]
+    }
+  })
 
   async function handleSearch() {
     if (!searchQuery.trim()) return
@@ -77,6 +94,16 @@ export default function HomePage() {
           </div>
         </div>
       </main>
+
+      {/* CopilotKit Chat Popup */}
+      <CopilotPopup
+        labels={{
+          title: "AI Assistant",
+          initial: "Hi! I'm your AI assistant. I can help you with driver's license questions, scheduling appointments, and more. What would you like to know?",
+          placeholder: "Ask me anything...",
+        }}
+        defaultOpen={false}
+      />
     </div>
   )
 }

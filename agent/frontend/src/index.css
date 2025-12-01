@@ -2891,3 +2891,63 @@ h3 {
     transform: translate3d(var(--tw-exit-translate-x, 0), var(--tw-exit-translate-y, 0), 0) scale3d(var(--tw-exit-scale, 1), var(--tw-exit-scale, 1), var(--tw-exit-scale, 1)) rotate(var(--tw-exit-rotate, 0));
   }
 }
+
+/* CopilotKit Custom Styles */
+:root {
+  --copilot-kit-primary-color: #B7B1F2;
+  --copilot-kit-secondary-color: #FDB7EA;
+  --copilot-kit-background-color: #f9fafb;
+  --copilot-kit-response-button-background-color: linear-gradient(to right, #B7B1F2, #FDB7EA);
+  --copilot-kit-response-button-color: white;
+}
+
+.copilotKitChat {
+  height: 100%;
+  border-radius: 1.5rem;
+  background: transparent;
+}
+
+.copilotKitHeader {
+  background: linear-gradient(to right, #B7B1F2, #FDB7EA);
+  border-radius: 1.5rem 1.5rem 0 0;
+  padding: 1rem 1.5rem;
+}
+
+.copilotKitHeader h1 {
+  color: white !important;
+  font-size: 1rem !important;
+  font-weight: 600;
+}
+
+.copilotKitMessages {
+  padding: 1rem;
+  background: #f9fafb;
+}
+
+.copilotKitUserMessage {
+  background: #FFDCCC !important;
+  border-radius: 14px;
+  border-bottom-right-radius: 4px;
+}
+
+.copilotKitAssistantMessage {
+  background: white !important;
+  border-radius: 14px;
+  border-bottom-left-radius: 4px;
+}
+
+.copilotKitInput {
+  border-radius: 0 0 1.5rem 1.5rem;
+  padding: 1rem;
+  background: #f9fafb;
+}
+
+.copilotKitInputControls button[type="submit"] {
+  background: linear-gradient(to right, #B7B1F2, #FDB7EA) !important;
+  border-radius: 9999px;
+  color: white;
+}
+
+.copilotKitInputControls button[type="submit"]:hover {
+  opacity: 0.9;
+}
