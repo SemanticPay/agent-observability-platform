@@ -18,7 +18,7 @@ charset-normalizer==3.4.4
 click==8.3.0
 cloudpickle==3.1.2
 cryptography==46.0.3
-copilotkit==0.1.39
+copilotkit
 dataclasses-json==0.6.7
 docstring_parser==0.17.0
 dotenv==0.9.9
