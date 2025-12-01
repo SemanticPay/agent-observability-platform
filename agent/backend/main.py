@@ -6,7 +6,7 @@ import uuid
 import os
 from pathlib import Path
 from datetime import datetime, timedelta
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from prometheus_client import make_asgi_app
@@ -15,6 +15,7 @@ from agent.backend.prometheus.client import PrometheusClient
 
 from agent.backend.instrument import instrument
 from agent.backend.agents.orchestrator.agent import call_agent
+from agent.backend.copilotkit_agent import copilotkit_app, adk_copilot_agent
 from agent.backend.types.types import (
     AgentCallRequest, QueryRequest, QueryResponse, 
     Photo, PhotoUploadResponse,
@@ -48,6 +49,226 @@ logger.info("FastAPI application initialized")
 # Create metrics endpoint
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
+
+# Mount CopilotKit AG-UI endpoint
+logger.info("Mounting CopilotKit AG-UI endpoint at /copilot")
+app.mount("/copilot", copilotkit_app)
+
+# Add a simplified CopilotKit endpoint for direct frontend communication
+@app.post("/api/copilotkit")
+async def copilotkit_endpoint(request: Request):
+    """CopilotKit-compatible endpoint using AG-UI protocol."""
+    from fastapi.responses import StreamingResponse
+    import json
+    
+    try:
+        body = await request.json()
+        logger.info(f"CopilotKit request received")
+        
+        # Check if this is AG-UI protocol (has "data" at top level with messages)
+        # or GraphQL protocol (has "operationName")
+        operation_name = body.get("operationName")
+        
+        if operation_name:
+            # GraphQL protocol
+            logger.info(f"GraphQL operation: {operation_name}")
+            if operation_name == "availableAgents":
+                return {
+                    "data": {
+                        "availableAgents": {
+                            "agents": [{
+                                "name": "orchestrator_agent",
+                                "id": "orchestrator_agent", 
+                                "description": "A citizen services assistant",
+                                "__typename": "Agent"
+                            }],
+                            "__typename": "AvailableAgents"
+                        }
+                    }
+                }
+            elif operation_name == "loadAgentState":
+                return {"data": {"loadAgentState": None}}
+            elif operation_name == "generateCopilotResponse":
+                # Extract data from GraphQL mutation
+                variables = body.get("variables", {})
+                data = variables.get("data", {})
+                messages = data.get("messages", [])
+                thread_id = data.get("threadId", str(uuid.uuid4()))
+                
+                logger.info(f"GraphQL generateCopilotResponse - Thread: {thread_id}, Messages: {len(messages)}")
+                
+                # Extract user messages
+                user_messages = []
+                for msg in messages:
+                    text_msg = msg.get("textMessage", {})
+                    if text_msg.get("role") == "user":
+                        user_messages.append(text_msg.get("content", ""))
+                
+                if not user_messages:
+                    logger.warning("No user messages in GraphQL request")
+                    return {"data": {"generateCopilotResponse": None}}
+                
+                question = user_messages[-1]
+                logger.info(f"User question: {question}")
+                
+                # Call agent and return streaming response
+                async def generate_graphql_sse():
+                    import asyncio
+                    import json as json_mod
+                    
+                    message_id = str(uuid.uuid4())
+                    run_id = str(uuid.uuid4())
+                    created_at = datetime.now().isoformat() + "Z"
+                    
+                    try:
+                        # Call the agent
+                        logger.info("Calling agent...")
+                        response = await call_agent(
+                            AgentCallRequest(
+                                question=question,
+                                session_id=thread_id
+                            )
+                        )
+                        logger.info(f"Agent response: {len(response.answer)} chars")
+                        
+                        # Stream word by word
+                        words = response.answer.split()
+                        current_content = ""
+                        
+                        for word in words:
+                            current_content += word + " "
+                            chunk = {
+                                "data": {
+                                    "generateCopilotResponse": {
+                                        "threadId": thread_id,
+                                        "runId": run_id,
+                                        "messages": [{
+                                            "__typename": "TextMessageOutput",
+                                            "id": message_id,
+                                            "createdAt": created_at,
+                                            "content": current_content.strip(),
+                                            "role": "assistant"
+                                        }],
+                                        "__typename": "CopilotResponse"
+                                    }
+                                }
+                            }
+                            yield f"data: {json_mod.dumps(chunk)}\n\n"
+                            await asyncio.sleep(0.02)
+                        
+                        # Final message
+                        final = {
+                            "data": {
+                                "generateCopilotResponse": {
+                                    "threadId": thread_id,
+                                    "runId": run_id,
+                                    "messages": [{
+                                        "__typename": "TextMessageOutput",
+                                        "id": message_id,
+                                        "createdAt": created_at,
+                                        "content": response.answer,
+                                        "role": "assistant",
+                                        "status": {"__typename": "SuccessMessageStatus"}
+                                    }],
+                                    "status": {"__typename": "SuccessResponseStatus"},
+                                    "__typename": "CopilotResponse"
+                                }
+                            }
+                        }
+                        yield f"data: {json_mod.dumps(final)}\n\n"
+                        logger.info("GraphQL SSE complete")
+                        
+                    except Exception as e:
+                        logger.error(f"Error: {e}", exc_info=True)
+                        yield f"data: {json_mod.dumps({'errors': [{'message': str(e)}]})}\n\n"
+                
+                return StreamingResponse(
+                    generate_graphql_sse(),
+                    media_type="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "Connection": "keep-alive"}
+                )
+            else:
+                logger.warning(f"Unknown GraphQL operation: {operation_name}")
+                return {"data": None}
+        
+        # AG-UI protocol - data is at top level
+        data = body.get("data", {})
+        messages = data.get("messages", [])
+        thread_id = data.get("threadId", str(uuid.uuid4()))
+        
+        logger.info(f"AG-UI request - Thread: {thread_id}, Messages: {len(messages)}")
+        
+        # Extract user messages
+        user_messages = []
+        for msg in messages:
+            text_msg = msg.get("textMessage", {})
+            if text_msg.get("role") == "user":
+                user_messages.append(text_msg.get("content", ""))
+        
+        if not user_messages:
+            logger.warning("No user messages found")
+            return {"type": "error", "error": "No user message found"}
+        
+        question = user_messages[-1]
+        logger.info(f"User question: {question}")
+        
+        # Stream response using AG-UI Server-Sent Events format
+        async def generate_agui_response():
+            try:
+                import asyncio
+                
+                # Generate IDs
+                message_id = str(uuid.uuid4())
+                run_id = str(uuid.uuid4())
+                
+                # 1. Send run started event
+                yield f"data: {json.dumps({'type': 'run_started', 'runId': run_id, 'threadId': thread_id})}\n\n"
+                
+                # 2. Send text message start
+                yield f"data: {json.dumps({'type': 'text_message_start', 'messageId': message_id, 'role': 'assistant'})}\n\n"
+                
+                # Call the agent
+                logger.info("Calling agent...")
+                response = await call_agent(
+                    AgentCallRequest(
+                        question=question,
+                        session_id=thread_id
+                    )
+                )
+                logger.info(f"Agent response: {len(response.answer)} chars")
+                
+                # 3. Stream content in chunks
+                words = response.answer.split()
+                for i, word in enumerate(words):
+                    chunk = word + (" " if i < len(words) - 1 else "")
+                    yield f"data: {json.dumps({'type': 'text_message_content', 'messageId': message_id, 'delta': chunk})}\n\n"
+                    await asyncio.sleep(0.02)
+                
+                # 4. Send text message end
+                yield f"data: {json.dumps({'type': 'text_message_end', 'messageId': message_id})}\n\n"
+                
+                # 5. Send run finished event
+                yield f"data: {json.dumps({'type': 'run_finished', 'runId': run_id, 'threadId': thread_id})}\n\n"
+                
+                logger.info("AG-UI streaming response complete")
+                
+            except Exception as e:
+                logger.error(f"Error in AG-UI response: {e}", exc_info=True)
+                yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+        
+        return StreamingResponse(
+            generate_agui_response(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            }
+        )
+            
+    except Exception as e:
+        logger.error(f"CopilotKit endpoint error: {e}", exc_info=True)
+        return {"type": "error", "error": str(e)}
 
 # Instrument FastAPI
 FastAPIInstrumentor.instrument_app(app)
