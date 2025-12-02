@@ -36,6 +36,59 @@ def validate_exam_type(exam_type: str) -> bool:
     return False
 
 
+def set_location_from_coordinates(
+    latitude: float, 
+    longitude: float, 
+    tool_context: Optional[ToolContext] = None
+) -> Location:
+    """
+    Set location directly from coordinates (used when user selects location from map).
+    
+    Args:
+        latitude: Latitude coordinate (e.g., -23.5505)
+        longitude: Longitude coordinate (e.g., -46.6333)
+        
+    Returns:
+        Location object with the provided coordinates
+    """
+    logger.info(f"Setting location from coordinates: lat={latitude}, lng={longitude}")
+    
+    # Try to reverse geocode to get address, but don't fail if it doesn't work
+    address = f"Location at {latitude:.6f}, {longitude:.6f}"
+    city = ""
+    state = ""
+    
+    try:
+        results = gmaps.reverse_geocode((latitude, longitude))  # type: ignore
+        if results and len(results) > 0:
+            result = results[0]
+            address = result.get('formatted_address', address)
+            address_components = result.get('address_components', [])
+            
+            for component in address_components:
+                if 'locality' in component['types']:
+                    city = component['long_name']
+                if 'administrative_area_level_1' in component['types']:
+                    state = component['short_name']
+            logger.info(f"Reverse geocoded to: {address}")
+    except Exception as e:
+        logger.warning(f"Reverse geocoding failed (using coordinates): {e}")
+    
+    location = Location(
+        address=address,
+        latitude=latitude,
+        longitude=longitude,
+        city=city,
+        state=state
+    )
+
+    if tool_context:
+        tool_context.state[keys.QUERY_LOCATION] = location.model_dump()
+        logger.info(f"Location stored in state: {location}")
+    
+    return location
+
+
 def geocode_location(location_query: str, tool_context: Optional[ToolContext] = None) -> Location:
     """
     Geocode a location query using Google Maps API.
