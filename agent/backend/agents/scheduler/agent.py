@@ -5,6 +5,7 @@ from agent.backend.tools.scheduler import (
     search_nearby_clinics,
     book_exam,
     geocode_location,
+    set_location_from_coordinates,
 )
 
 
@@ -15,6 +16,7 @@ scheduler_agent = Agent(
     instruction=PROMPT,
     tools=[
         geocode_location,
+        set_location_from_coordinates,
         search_nearby_clinics,
         book_exam,
     ]
