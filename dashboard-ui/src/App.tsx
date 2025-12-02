@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { CopilotSidebar } from "@copilotkit/react-ui";
+import { prompt } from "./prompt"
+import { CustomAssistantMessage } from "./components/AssistantMessage";
 import { motion, AnimatePresence } from "motion/react";
 import { OverviewPage } from "./components/pages/OverviewPage";
 import { PerformancePage } from "./components/pages/PerformancePage";
@@ -9,6 +12,7 @@ import { IntegrationsPage } from "./components/pages/IntegrationsPage";
 import { AgentAccessPage } from "./components/pages/AgentAccessPage";
 import { AgentRegistryPage } from "./components/pages/AgentRegistryPage";
 import { MetricsPage } from "./components/pages/MetricsPage";
+import { useCopilotReadable } from "@copilotkit/react-core";
 import { 
   LayoutDashboard, 
   Gauge, 
@@ -48,7 +52,13 @@ export default function App() {
 
   const CurrentPageComponent = pages[currentPage].component;
 
+  useCopilotReadable({
+    description: "Current time",
+    value: new Date().toLocaleTimeString(),
+  })
+
   return (
+    <>
     <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Navigation */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200">
@@ -112,5 +122,15 @@ export default function App() {
         </AnimatePresence>
       </div>
     </div>
+    <CopilotSidebar
+      instructions={prompt}
+      AssistantMessage={CustomAssistantMessage}
+      labels={{
+        title: "Data Assistant",
+        initial: "Hello, I'm here to help you understand your data. How can I help?",
+        placeholder: "Ask about sales, trends, or metrics...",
+      }}
+    />
+    </>
   );
 }

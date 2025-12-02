@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useCopilotReadable } from "@copilotkit/react-core";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
 import { useMetricsSummary, useMetricsByAgent, useMetricsTimeSeries } from "../../hooks/useMetrics";
 import { 
@@ -13,6 +14,20 @@ export function MetricsPage() {
   const { data: summary, loading: summaryLoading, error: summaryError } = useMetricsSummary(timeRange);
   const { data: agentData, loading: agentLoading, error: agentError } = useMetricsByAgent(timeRange);
   const { data: timeSeries, loading: timeSeriesLoading, error: timeSeriesError } = useMetricsTimeSeries(24, "5m");
+
+  console.log("SUMMARY", summary)
+  console.log("AGENT DATA", agentData)
+  console.log("TIME SERIES", timeSeries)
+
+  // Make data available to the Copilot
+  useCopilotReadable({
+    description: "Dashboard data including sales trends, product performance, and category distribution",
+    value: {
+      summary,
+      agentData,
+      // timeSeries, 
+    }
+  });
 
   return (
     <div className="space-y-6 p-6">
