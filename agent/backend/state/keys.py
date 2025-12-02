@@ -32,3 +32,15 @@ NEARBY_CLINICS = "X-nearby-clinics"
 Key for storing exam booking information.
 """
 EXAM_BOOKING = "X-exam-booking"
+
+"""
+@type: bool
+Key to indicate the UI should show the location picker.
+"""
+SHOW_LOCATION_PICKER = "X-show-location-picker"
+
+"""
+@type: Location
+Key for storing user-selected location from the UI picker.
+"""
+USER_SELECTED_LOCATION = "X-user-selected-location"

@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
+import { useCopilotAction, useCopilotChat } from "@copilotkit/react-core";
+import LocationPicker, { SelectedLocation } from "./LocationPicker";
 
 interface Message {
   id: string;
@@ -11,7 +13,6 @@ interface Message {
 }
 
 export default function CopilotKitPage() {
-  const [themeColor, setThemeColor] = useState("#3b82f6");
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -23,7 +24,73 @@ export default function CopilotKitPage() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID());
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [pendingLocationCallback, setPendingLocationCallback] = useState<((location: SelectedLocation) => void) | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // CopilotKit action for selecting location from map
+  useCopilotAction({
+    name: "selectLocationFromMap",
+    description: "Opens a map for the user to select a location. Use this when the user needs to provide an address or location for scheduling an appointment.",
+    parameters: [
+      {
+        name: "prompt",
+        type: "string",
+        description: "A message to show the user explaining what location they should select",
+        required: false,
+      },
+    ],
+    handler: async ({ prompt }) => {
+      return new Promise<string>((resolve) => {
+        // Show a message that we're opening the map
+        if (prompt) {
+          setMessages(prev => [...prev, {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: `📍 ${prompt}\n\n*Opening map picker...*`,
+            timestamp: new Date(),
+          }]);
+        }
+        
+        // Set up the callback for when location is selected
+        setPendingLocationCallback(() => (location: SelectedLocation) => {
+          setShowLocationPicker(false);
+          setPendingLocationCallback(null);
+          resolve(`Selected location: ${location.address} (Coordinates: ${location.latitude}, ${location.longitude})`);
+        });
+        
+        setShowLocationPicker(true);
+      });
+    },
+    render: ({ status, result }) => {
+      if (status === "executing") {
+        return (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 my-2">
+            <div className="flex items-center gap-2 text-blue-700">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="font-medium">Waiting for location selection...</span>
+            </div>
+          </div>
+        );
+      }
+      if (status === "complete" && result) {
+        return (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 my-2">
+            <div className="flex items-center gap-2 text-green-700">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="font-medium">Location selected!</span>
+            </div>
+          </div>
+        );
+      }
+      return null;
+    },
+  });
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -33,13 +100,14 @@ export default function CopilotKitPage() {
     scrollToBottom();
   }, [messages]);
 
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+  const sendMessage = async (messageContent?: string) => {
+    const content = messageContent || input.trim();
+    if (!content || isLoading) return;
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: "user",
-      content: input.trim(),
+      content: content,
       timestamp: new Date(),
     };
 
@@ -52,7 +120,7 @@ export default function CopilotKitPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          question: userMessage.content,
+          question: content,
           session_id: sessionId,
         }),
       });
@@ -87,12 +155,32 @@ export default function CopilotKitPage() {
     }
   };
 
+  const handleLocationSelect = useCallback((location: SelectedLocation) => {
+    if (pendingLocationCallback) {
+      pendingLocationCallback(location);
+    } else {
+      // If no callback, send as a regular message
+      setShowLocationPicker(false);
+      const locationMessage = `I want to schedule at this location: ${location.address}`;
+      sendMessage(locationMessage);
+    }
+  }, [pendingLocationCallback]);
+
+  const handleLocationCancel = useCallback(() => {
+    setShowLocationPicker(false);
+    setPendingLocationCallback(null);
+  }, []);
+
+  const openLocationPicker = useCallback(() => {
+    setShowLocationPicker(true);
+  }, []);
+
   return (
     <div className="h-screen w-screen flex bg-gradient-to-br from-blue-50 to-white">
       {/* Main Content */}
       <div 
         className="flex-1 flex justify-center items-center p-8 transition-colors duration-500"
-        style={{ background: `linear-gradient(135deg, ${themeColor}15 0%, white 100%)` }}
+        style={{ background: `linear-gradient(135deg, #3b82f615 0%, white 100%)` }}
       >
         <div className="bg-white p-8 rounded-3xl shadow-xl max-w-2xl w-full border border-blue-100">
           <h1 className="text-4xl font-bold text-blue-600 mb-2 text-center">
@@ -116,6 +204,10 @@ export default function CopilotKitPage() {
               <li className="flex items-center gap-2">
                 <span>📸</span>
                 <span>Get help with document verification</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span>📍</span>
+                <span>Select locations from the map when scheduling</span>
               </li>
             </ul>
           </div>
@@ -152,6 +244,17 @@ export default function CopilotKitPage() {
               </div>
             </div>
           ))}
+          
+          {/* Location Picker Modal */}
+          {showLocationPicker && (
+            <div className="my-4">
+              <LocationPicker
+                onLocationSelect={handleLocationSelect}
+                onCancel={handleLocationCancel}
+              />
+            </div>
+          )}
+          
           {isLoading && (
             <div className="flex justify-start">
               <div className="bg-white text-gray-800 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm border border-gray-100">
@@ -169,6 +272,18 @@ export default function CopilotKitPage() {
         {/* Input */}
         <div className="p-4 border-t border-blue-100 bg-white">
           <div className="flex gap-2">
+            {/* Location Picker Button */}
+            <button
+              onClick={openLocationPicker}
+              disabled={isLoading}
+              className="bg-blue-100 hover:bg-blue-200 disabled:bg-gray-50 disabled:cursor-not-allowed text-blue-600 rounded-xl px-3 py-3 transition-colors border-2 border-blue-300 hover:border-blue-400"
+              title="📍 Select location from map"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+            </button>
+            
             <input
               type="text"
               value={input}
@@ -179,7 +294,7 @@ export default function CopilotKitPage() {
               className="flex-1 bg-gray-50 text-gray-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 border border-gray-200 placeholder-gray-400 disabled:opacity-50"
             />
             <button
-              onClick={sendMessage}
+              onClick={() => sendMessage()}
               disabled={isLoading || !input.trim()}
               className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl px-4 py-3 transition-colors"
             >
@@ -188,9 +303,13 @@ export default function CopilotKitPage() {
               </svg>
             </button>
           </div>
+          
+          {/* Quick action hint */}
+          <p className="text-xs text-gray-400 mt-2 text-center">
+            💡 Click the map button to select a location from the map when scheduling
+          </p>
         </div>
       </div>
     </div>
   );
 }
-
