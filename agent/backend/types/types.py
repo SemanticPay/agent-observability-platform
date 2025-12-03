@@ -100,10 +100,17 @@ class PhotoUploadResponse(BaseModel):
 class MetricsSummary(BaseModel):
     """Summary of key metrics over a time range."""
     total_cost: float
-    total_tokens: int
+    total_runs: int = 0
     total_tool_calls: int
     avg_execution_duration: float
     time_range: str
+
+
+class ToolMetrics(BaseModel):
+    """Metrics for a single tool."""
+    name: str
+    calls: int = 0
+    avg_duration: float = 0.0
 
 
 class AgentMetrics(BaseModel):
@@ -112,12 +119,29 @@ class AgentMetrics(BaseModel):
     cost: float = 0.0
     tokens: int = 0
     tool_calls: int = 0
+    llm_requests: int = 0
     duration: float = 0.0
+
+
+class AgentDetailMetrics(BaseModel):
+    """Detailed metrics for a single agent including tool breakdown."""
+    name: str
+    model: str
+    cost: float = 0.0
+    runs: int = 0
+    avg_duration: float = 0.0
+    tools: list[ToolMetrics] = Field(default_factory=list)
 
 
 class AgentMetricsResponse(BaseModel):
     """Response containing metrics by agent."""
     agents: list[AgentMetrics]
+    time_range: str
+
+
+class AgentDetailResponse(BaseModel):
+    """Response containing detailed metrics for all agents."""
+    agents: list[AgentDetailMetrics]
     time_range: str
 
 
@@ -140,3 +164,15 @@ class TimeSeriesResponse(BaseModel):
     time_series: TimeSeriesData
     hours: int
     step: str
+
+
+class AgentConfigInfo(BaseModel):
+    """Static configuration info for an agent."""
+    name: str
+    model: str
+    tools: list[str]
+
+
+class AgentConfigResponse(BaseModel):
+    """Response containing static agent configuration."""
+    agents: list[AgentConfigInfo]

@@ -1,4 +1,5 @@
 import logging
+import math
 import sys
 import time
 import uuid
@@ -18,7 +19,9 @@ from agent.backend.types.types import (
     AgentCallRequest, QueryRequest, QueryResponse, 
     Photo, PhotoUploadResponse,
     MetricsSummary, AgentMetrics, AgentMetricsResponse,
-    TimeSeriesPoint, TimeSeriesData, TimeSeriesResponse
+    TimeSeriesPoint, TimeSeriesData, TimeSeriesResponse,
+    AgentConfigInfo, AgentConfigResponse,
+    ToolMetrics, AgentDetailMetrics, AgentDetailResponse
 )
 from agent.backend.database.photo import MockPhotoDatabase
 from agent.backend.photo.classification import classify_photo
@@ -52,6 +55,14 @@ prometheus_client = PrometheusClient()
 
 # Instrument ADK
 instrument()
+
+
+def _safe_float(val: float, default: float = 0.0) -> float:
+    """Return default if val is NaN or infinite."""
+    if math.isnan(val) or math.isinf(val):
+        return default
+    return val
+
 
 logger.info("Adding CORS middleware")
 app.add_middleware(
@@ -222,16 +233,14 @@ async def get_metrics_summary(time_range: str = "1h"):
     logger.info(f"Fetching metrics summary for time_range={time_range}")
     
     try:
-        range_seconds = _parse_time_range(time_range)
-        
-        # Query total tokens (prompt + completion)
-        tokens_query = f'sum(increase(adk_llm_tokens_total[{time_range}])) or vector(0)'
-        tokens_result = await prometheus_client.query(tokens_query)
-        total_tokens = 0
-        if tokens_result and tokens_result.get("result"):
-            for r in tokens_result["result"]:
+        # Query total agent runs
+        runs_query = f'sum(increase(adk_agent_runs_total[{time_range}])) or vector(0)'
+        runs_result = await prometheus_client.query(runs_query)
+        total_runs = 0
+        if runs_result and runs_result.get("result"):
+            for r in runs_result["result"]:
                 val = float(r["value"][1]) if r.get("value") else 0
-                total_tokens += int(val)
+                total_runs += int(val)
         
         # Query total tool calls
         tool_calls_query = f'sum(increase(adk_tool_calls_total[{time_range}])) or vector(0)'
@@ -248,18 +257,23 @@ async def get_metrics_summary(time_range: str = "1h"):
         avg_duration = 0.0
         if duration_result and duration_result.get("result"):
             for r in duration_result["result"]:
-                val = float(r["value"][1]) if r.get("value") else 0
+                val = _safe_float(float(r["value"][1])) if r.get("value") else 0.0
                 if val > 0:
                     avg_duration = val
                     break
         
-        # Estimate cost based on tokens (rough estimation: $0.00001 per token)
-        cost_per_token = 0.00001
-        total_cost = total_tokens * cost_per_token
+        # Query total cost from the actual cost metric
+        cost_query = f'sum(increase(adk_llm_cost_dollars_total[{time_range}])) or vector(0)'
+        cost_result = await prometheus_client.query(cost_query)
+        total_cost = 0.0
+        if cost_result and cost_result.get("result"):
+            for r in cost_result["result"]:
+                val = float(r["value"][1]) if r.get("value") else 0
+                total_cost += val
         
         return MetricsSummary(
             total_cost=total_cost,
-            total_tokens=total_tokens,
+            total_runs=total_runs,
             total_tool_calls=total_tool_calls,
             avg_execution_duration=avg_duration,
             time_range=time_range
@@ -270,7 +284,7 @@ async def get_metrics_summary(time_range: str = "1h"):
         # Return zeros on error
         return MetricsSummary(
             total_cost=0.0,
-            total_tokens=0,
+            total_runs=0,
             total_tool_calls=0,
             avg_execution_duration=0.0,
             time_range=time_range
@@ -307,36 +321,54 @@ async def get_metrics_by_agent(time_range: str = "1h"):
         if duration_result and duration_result.get("result"):
             for r in duration_result["result"]:
                 agent_name = r["metric"].get("agent_name", "unknown")
-                val = float(r["value"][1]) if r.get("value") else 0
+                val = _safe_float(float(r["value"][1])) if r.get("value") else 0.0
                 if agent_name not in agents_data:
                     agents_data[agent_name] = AgentMetrics(agent_id=agent_name)
                 agents_data[agent_name].duration = val
         
-        # Query tool calls (grouped by tool, we aggregate)
-        tool_query = f'sum(increase(adk_tool_calls_total[{time_range}])) or vector(0)'
+        # Query tool calls by agent_name
+        tool_query = f'sum by (agent_name) (increase(adk_tool_calls_total[{time_range}]))'
         tool_result = await prometheus_client.query(tool_query)
-        total_tool_calls = 0
         if tool_result and tool_result.get("result"):
             for r in tool_result["result"]:
+                agent_name = r["metric"].get("agent_name", "unknown")
                 val = float(r["value"][1]) if r.get("value") else 0
-                total_tool_calls = int(val)
+                if agent_name not in agents_data:
+                    agents_data[agent_name] = AgentMetrics(agent_id=agent_name)
+                agents_data[agent_name].tool_calls = int(val)
         
-        # Query tokens by model
-        tokens_query = f'sum(increase(adk_llm_tokens_total[{time_range}])) or vector(0)'
+        # Query LLM requests by agent_name
+        llm_requests_query = f'sum by (agent_name) (increase(adk_llm_requests_total[{time_range}]))'
+        llm_result = await prometheus_client.query(llm_requests_query)
+        if llm_result and llm_result.get("result"):
+            for r in llm_result["result"]:
+                agent_name = r["metric"].get("agent_name", "unknown")
+                val = float(r["value"][1]) if r.get("value") else 0
+                if agent_name not in agents_data:
+                    agents_data[agent_name] = AgentMetrics(agent_id=agent_name)
+                agents_data[agent_name].llm_requests = int(val)
+        
+        # Query tokens by agent_name (now available with agent_name label!)
+        tokens_query = f'sum by (agent_name) (increase(adk_llm_tokens_total{{type="total"}}[{time_range}]))'
         tokens_result = await prometheus_client.query(tokens_query)
-        total_tokens = 0
         if tokens_result and tokens_result.get("result"):
             for r in tokens_result["result"]:
+                agent_name = r["metric"].get("agent_name", "unknown")
                 val = float(r["value"][1]) if r.get("value") else 0
-                total_tokens = int(val)
+                if agent_name not in agents_data:
+                    agents_data[agent_name] = AgentMetrics(agent_id=agent_name)
+                agents_data[agent_name].tokens = int(val)
         
-        # Distribute tokens and tool calls proportionally across agents
-        # TODO: label tool call metrics with agent_name (currently not supported by ADK)
-        num_agents = len(agents_data) or 1
-        for agent in agents_data.values():
-            agent.tokens = total_tokens // num_agents
-            agent.tool_calls = total_tool_calls // num_agents
-            agent.cost = agent.tokens * 0.00001
+        # Query cost by agent_name (now available with agent_name label!)
+        cost_query = f'sum by (agent_name) (increase(adk_llm_cost_dollars_total[{time_range}]))'
+        cost_result = await prometheus_client.query(cost_query)
+        if cost_result and cost_result.get("result"):
+            for r in cost_result["result"]:
+                agent_name = r["metric"].get("agent_name", "unknown")
+                val = float(r["value"][1]) if r.get("value") else 0
+                if agent_name not in agents_data:
+                    agents_data[agent_name] = AgentMetrics(agent_id=agent_name)
+                agents_data[agent_name].cost = val
         
         return AgentMetricsResponse(
             agents=list(agents_data.values()),
@@ -346,6 +378,109 @@ async def get_metrics_by_agent(time_range: str = "1h"):
     except Exception as e:
         logger.error(f"Error fetching agent metrics: {e}", exc_info=True)
         return AgentMetricsResponse(agents=[], time_range=time_range)
+
+
+@app.get("/api/metrics/agents/detail", response_model=AgentDetailResponse)
+async def get_agent_detail_metrics(time_range: str = "1h"):
+    """Get detailed metrics for each agent including tool breakdown.
+    
+    Args:
+        time_range: Time range string (e.g., '1h', '24h', '7d')
+        
+    Returns:
+        AgentDetailResponse with per-agent metrics and tool breakdown
+    """
+    logger.info(f"Fetching detailed agent metrics for time_range={time_range}")
+    
+    try:
+        # First get static agent info (model, tools)
+        agents_config: dict[str, AgentDetailMetrics] = {}
+        
+        # Query agent model info
+        model_query = 'adk_agent_model_info'
+        model_result = await prometheus_client.query(model_query)
+        if model_result and model_result.get("result"):
+            for r in model_result["result"]:
+                agent_name = r["metric"].get("agent_name", "unknown")
+                model = r["metric"].get("model", "unknown")
+                if agent_name not in agents_config:
+                    agents_config[agent_name] = AgentDetailMetrics(name=agent_name, model=model)
+                else:
+                    agents_config[agent_name].model = model
+        
+        # Query cost by agent
+        cost_query = f'sum by (agent_name) (increase(adk_llm_cost_dollars_total[{time_range}]))'
+        cost_result = await prometheus_client.query(cost_query)
+        if cost_result and cost_result.get("result"):
+            for r in cost_result["result"]:
+                agent_name = r["metric"].get("agent_name", "unknown")
+                val = float(r["value"][1]) if r.get("value") else 0
+                if agent_name in agents_config:
+                    agents_config[agent_name].cost = val
+        
+        # Query runs by agent
+        runs_query = f'sum by (agent_name) (increase(adk_agent_runs_total[{time_range}]))'
+        runs_result = await prometheus_client.query(runs_query)
+        if runs_result and runs_result.get("result"):
+            for r in runs_result["result"]:
+                agent_name = r["metric"].get("agent_name", "unknown")
+                val = float(r["value"][1]) if r.get("value") else 0
+                if agent_name in agents_config:
+                    agents_config[agent_name].runs = int(val)
+        
+        # Query avg duration by agent
+        duration_query = f'avg by (agent_name) (rate(adk_agent_run_duration_seconds_sum[{time_range}]) / rate(adk_agent_run_duration_seconds_count[{time_range}]))'
+        duration_result = await prometheus_client.query(duration_query)
+        if duration_result and duration_result.get("result"):
+            for r in duration_result["result"]:
+                agent_name = r["metric"].get("agent_name", "unknown")
+                val = _safe_float(float(r["value"][1])) if r.get("value") else 0.0
+                if agent_name in agents_config:
+                    agents_config[agent_name].avg_duration = val
+        
+        # Query tool calls by agent and tool
+        tool_calls_query = f'sum by (agent_name, tool_name) (increase(adk_tool_calls_total[{time_range}]))'
+        tool_calls_result = await prometheus_client.query(tool_calls_query)
+        if tool_calls_result and tool_calls_result.get("result"):
+            for r in tool_calls_result["result"]:
+                agent_name = r["metric"].get("agent_name", "unknown")
+                tool_name = r["metric"].get("tool_name", "unknown")
+                val = float(r["value"][1]) if r.get("value") else 0
+                if agent_name in agents_config:
+                    # Find or create tool metrics
+                    tool_metrics = next(
+                        (t for t in agents_config[agent_name].tools if t.name == tool_name),
+                        None
+                    )
+                    if not tool_metrics:
+                        tool_metrics = ToolMetrics(name=tool_name)
+                        agents_config[agent_name].tools.append(tool_metrics)
+                    tool_metrics.calls = int(val)
+        
+        # Query tool avg duration by agent and tool
+        tool_duration_query = f'avg by (agent_name, tool_name) (rate(adk_tool_call_duration_seconds_sum[{time_range}]) / rate(adk_tool_call_duration_seconds_count[{time_range}]))'
+        tool_duration_result = await prometheus_client.query(tool_duration_query)
+        if tool_duration_result and tool_duration_result.get("result"):
+            for r in tool_duration_result["result"]:
+                agent_name = r["metric"].get("agent_name", "unknown")
+                tool_name = r["metric"].get("tool_name", "unknown")
+                val = _safe_float(float(r["value"][1])) if r.get("value") else 0.0
+                if agent_name in agents_config:
+                    tool_metrics = next(
+                        (t for t in agents_config[agent_name].tools if t.name == tool_name),
+                        None
+                    )
+                    if tool_metrics:
+                        tool_metrics.avg_duration = val
+        
+        return AgentDetailResponse(
+            agents=list(agents_config.values()),
+            time_range=time_range
+        )
+        
+    except Exception as e:
+        logger.error(f"Error fetching agent detail metrics: {e}", exc_info=True)
+        return AgentDetailResponse(agents=[], time_range=time_range)
 
 
 @app.get("/api/metrics/time-series", response_model=TimeSeriesResponse)
@@ -367,8 +502,8 @@ async def get_metrics_time_series(hours: int = 24, step: str = "5m"):
         
         time_series = TimeSeriesData()
         
-        # Tokens over time
-        tokens_query = 'sum(rate(adk_llm_tokens_total[5m])) or vector(0)'
+        # Tokens over time (using type="total" to avoid double counting)
+        tokens_query = 'sum(rate(adk_llm_tokens_total{type="total"}[5m])) or vector(0)'
         tokens_result = await prometheus_client.query_range(tokens_query, start_time, end_time, step)
         if tokens_result and tokens_result.get("result"):
             for series in tokens_result["result"]:
@@ -401,12 +536,16 @@ async def get_metrics_time_series(hours: int = 24, step: str = "5m"):
                         value=val_float
                     ))
         
-        # Cost over time (derived from tokens)
-        for point in time_series.tokens:
-            time_series.cost.append(TimeSeriesPoint(
-                timestamp=point.timestamp,
-                value=point.value * 0.00001
-            ))
+        # Cost over time (from actual cost metric)
+        cost_query = 'sum(rate(adk_llm_cost_dollars_total[5m])) or vector(0)'
+        cost_result = await prometheus_client.query_range(cost_query, start_time, end_time, step)
+        if cost_result and cost_result.get("result"):
+            for series in cost_result["result"]:
+                for ts, val in series.get("values", []):
+                    time_series.cost.append(TimeSeriesPoint(
+                        timestamp=datetime.fromtimestamp(ts).isoformat(),
+                        value=float(val) if val != "NaN" else 0.0
+                    ))
         
         return TimeSeriesResponse(
             time_series=time_series,
@@ -421,6 +560,49 @@ async def get_metrics_time_series(hours: int = 24, step: str = "5m"):
             hours=hours,
             step=step
         )
+
+
+@app.get("/api/agents/info", response_model=AgentConfigResponse)
+async def get_agents_config():
+    """Get static configuration info for all agents (tools and models).
+    
+    Returns:
+        AgentConfigResponse with agent names, models, and tools
+    """
+    logger.info("Fetching agent configuration")
+    
+    try:
+        agents_config: dict[str, AgentConfigInfo] = {}
+        
+        # Query agent tool info
+        tool_query = 'adk_agent_tool_info'
+        tool_result = await prometheus_client.query(tool_query)
+        if tool_result and tool_result.get("result"):
+            for r in tool_result["result"]:
+                agent_name = r["metric"].get("agent_name", "unknown")
+                tool_name = r["metric"].get("tool_name", "")
+                if agent_name not in agents_config:
+                    agents_config[agent_name] = AgentConfigInfo(name=agent_name, model="", tools=[])
+                if tool_name:
+                    agents_config[agent_name].tools.append(tool_name)
+        
+        # Query agent model info
+        model_query = 'adk_agent_model_info'
+        model_result = await prometheus_client.query(model_query)
+        if model_result and model_result.get("result"):
+            for r in model_result["result"]:
+                agent_name = r["metric"].get("agent_name", "unknown")
+                model = r["metric"].get("model", "unknown")
+                if agent_name not in agents_config:
+                    agents_config[agent_name] = AgentConfigInfo(name=agent_name, model=model, tools=[])
+                else:
+                    agents_config[agent_name].model = model
+        
+        return AgentConfigResponse(agents=list(agents_config.values()))
+        
+    except Exception as e:
+        logger.error(f"Error fetching agent config: {e}", exc_info=True)
+        return AgentConfigResponse(agents=[])
 
 
 if __name__ == "__main__":
