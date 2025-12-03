@@ -345,19 +345,60 @@ async def query_agent(request: QueryRequest):
                 logger.info("Agent returned a valid response")
                 break
 
-        # TODO: handle function_payloads if needed
-
         logger.info("Agent response received")
-        # logger.info(f"Agent answer: {agent_resp.answer if agent_resp else 'No response'}")
         logger.info(f"Function payloads count: {len(agent_resp.function_payloads) if agent_resp.function_payloads else 0}")
+
+        # Process function payloads to extract data for frontend widgets
+        widgets = []
+        if agent_resp.function_payloads:
+            clinics_data = None
+            user_location = None
+            
+            for payload in agent_resp.function_payloads:
+                logger.info(f"Processing payload: {payload.name}")
+                
+                # Extract clinic results
+                if payload.name == "search_nearby_clinics" and payload.payload:
+                    if isinstance(payload.payload, list):
+                        clinics_data = payload.payload
+                        logger.info(f"Found {len(clinics_data)} clinics in payload")
+                    elif hasattr(payload.payload, '__iter__'):
+                        clinics_data = list(payload.payload)
+                        logger.info(f"Converted clinics payload to list: {len(clinics_data)} items")
+                
+                # Extract user location from geocoding
+                if payload.name in ["set_location_from_coordinates", "geocode_location"] and payload.payload:
+                    if isinstance(payload.payload, dict):
+                        user_location = {
+                            "lat": payload.payload.get("latitude"),
+                            "lng": payload.payload.get("longitude")
+                        }
+                    elif hasattr(payload.payload, "latitude"):
+                        user_location = {
+                            "lat": payload.payload.latitude,
+                            "lng": payload.payload.longitude
+                        }
+                    logger.info(f"Found user location: {user_location}")
+            
+            # Create clinics map widget if we have clinic data
+            if clinics_data:
+                widgets.append({
+                    "type": "clinics_map",
+                    "data": {
+                        "clinics": clinics_data,
+                        "userLocation": user_location
+                    }
+                })
+                logger.info(f"Added clinics_map widget with {len(clinics_data)} clinics")
 
         logger.info("Building query response")
         response = QueryResponse(
             response=agent_resp.answer if agent_resp else "No response generated",
             status="success",
             session_id=session_id,
+            widgets=widgets,
         )
-        logger.info("Query completed successfully")
+        logger.info(f"Query completed successfully with {len(widgets)} widgets")
         logger.info("="*60)
         
         return response
