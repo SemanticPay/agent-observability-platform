@@ -4,12 +4,15 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import { useCopilotAction, useCopilotChat } from "@copilotkit/react-core";
 import LocationPicker, { SelectedLocation } from "./LocationPicker";
+import ClinicsMap, { Clinic } from "./ClinicsMap";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  clinics?: Clinic[]; // Optional clinics data to show on map
+  userLocation?: { lat: number; lng: number }; // User's search location
 }
 
 export default function CopilotKitPage() {
@@ -127,11 +130,42 @@ export default function CopilotKitPage() {
 
       const data = await response.json();
       
+      // Check if response contains clinic data in widgets
+      let clinics: Clinic[] | undefined;
+      let userLocation: { lat: number; lng: number } | undefined;
+      
+      // Parse widgets for clinic data
+      if (data.widgets && Array.isArray(data.widgets)) {
+        console.log("Parsing widgets:", data.widgets);
+        for (const widget of data.widgets) {
+          if (widget.type === 'clinics_map' && widget.data) {
+            // Handle clinic data - could be array of objects or Pydantic models
+            if (Array.isArray(widget.data.clinics)) {
+              clinics = widget.data.clinics.map((c: any) => ({
+                id: c.id || c.clinic_id || String(Math.random()),
+                name: c.name,
+                address: c.address,
+                latitude: c.latitude,
+                longitude: c.longitude,
+                exam_types: c.exam_types || [],
+                distance_km: c.distance_km || 0,
+              }));
+            }
+            if (widget.data.userLocation) {
+              userLocation = widget.data.userLocation;
+            }
+            console.log("Found clinics:", clinics?.length, "userLocation:", userLocation);
+          }
+        }
+      }
+      
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
         content: data.response || "Sorry, I couldn't process that request.",
         timestamp: new Date(),
+        clinics,
+        userLocation,
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -227,7 +261,7 @@ export default function CopilotKitPage() {
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex flex-col ${message.role === "user" ? "items-end" : "items-start"}`}
             >
               <div
                 className="max-w-[85%] rounded-2xl px-4 py-3 bg-white text-gray-800 shadow-sm border border-gray-200"
@@ -242,6 +276,20 @@ export default function CopilotKitPage() {
                   <ReactMarkdown>{message.content}</ReactMarkdown>
                 </div>
               </div>
+              
+              {/* Show Clinics Map if clinics data is present */}
+              {message.clinics && message.clinics.length > 0 && (
+                <div className="w-full mt-3">
+                  <ClinicsMap
+                    clinics={message.clinics}
+                    userLocation={message.userLocation}
+                    onClinicSelect={(clinic) => {
+                      // When user selects a clinic from the map, send it as a message
+                      sendMessage(`I want to book at ${clinic.name} (ID: ${clinic.id})`);
+                    }}
+                  />
+                </div>
+              )}
             </div>
           ))}
           
