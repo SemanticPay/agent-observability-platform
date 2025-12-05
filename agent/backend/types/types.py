@@ -111,6 +111,7 @@ class ToolMetrics(BaseModel):
     name: str
     calls: int = 0
     avg_duration: float = 0.0
+    success_rate: float = 1.0  # 0.0 to 1.0
 
 
 class AgentMetrics(BaseModel):
@@ -130,6 +131,7 @@ class AgentDetailMetrics(BaseModel):
     cost: float = 0.0
     runs: int = 0
     avg_duration: float = 0.0
+    success_rate: float = 1.0  # 0.0 to 1.0
     tools: list[ToolMetrics] = Field(default_factory=list)
     workflows: list[str] = Field(default_factory=list)
     subagents: list[str] = Field(default_factory=list)

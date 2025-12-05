@@ -428,6 +428,16 @@ async def get_agent_detail_metrics(time_range: str = "1h"):
                 if agent_name in agents_config:
                     agents_config[agent_name].runs = int(val)
         
+        # Query agent success rate (successful runs / total runs from metric)
+        success_rate_query = f'sum by (agent_name) (increase(adk_agent_runs_total{{status="success"}}[{time_range}])) / sum by (agent_name) (increase(adk_agent_runs_total[{time_range}]))'
+        success_rate_result = await prometheus_client.query(success_rate_query)
+        if success_rate_result and success_rate_result.get("result"):
+            for r in success_rate_result["result"]:
+                agent_name = r["metric"].get("agent_name", "unknown")
+                val = _safe_float(float(r["value"][1])) if r.get("value") else 0.0
+                if agent_name in agents_config:
+                    agents_config[agent_name].success_rate = min(val, 1.0)  # Cap at 1.0
+        
         # Query avg duration by agent
         duration_query = f'avg by (agent_name) (rate(adk_agent_run_duration_seconds_sum[{time_range}]) / rate(adk_agent_run_duration_seconds_count[{time_range}]))'
         duration_result = await prometheus_client.query(duration_query)
@@ -472,6 +482,22 @@ async def get_agent_detail_metrics(time_range: str = "1h"):
                     )
                     if tool_metrics:
                         tool_metrics.avg_duration = val
+        
+        # Query tool success rate by agent and tool
+        tool_success_query = f'sum by (agent_name, tool_name) (increase(adk_tool_calls_total{{status="success"}}[{time_range}])) / sum by (agent_name, tool_name) (increase(adk_tool_calls_total[{time_range}]))'
+        tool_success_result = await prometheus_client.query(tool_success_query)
+        if tool_success_result and tool_success_result.get("result"):
+            for r in tool_success_result["result"]:
+                agent_name = r["metric"].get("agent_name", "unknown")
+                tool_name = r["metric"].get("tool_name", "unknown")
+                val = _safe_float(float(r["value"][1])) if r.get("value") else 0.0
+                if agent_name in agents_config:
+                    tool_metrics = next(
+                        (t for t in agents_config[agent_name].tools if t.name == tool_name),
+                        None
+                    )
+                    if tool_metrics:
+                        tool_metrics.success_rate = min(val, 1.0)  # Cap at 1.0
         
         # Query agent workflows info
         workflows_query = 'adk_agent_workflows_info'

@@ -5,7 +5,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer
 } from "recharts";
-import { DollarSign, Cpu, Wrench, Clock, RefreshCw, Loader2, AlertCircle, Bot, Play, GitBranch, Users } from "lucide-react";
+import { DollarSign, Cpu, Wrench, Clock, RefreshCw, Loader2, AlertCircle, Bot, Play, GitBranch, Users, CheckCircle, MessageSquare } from "lucide-react";
 
 export function MetricsPage() {
   const [timeRange, setTimeRange] = useState("1h");
@@ -203,9 +203,15 @@ export function MetricsPage() {
                     <div className="text-xs text-slate-500 mb-1">Runs</div>
                     <div className="text-lg font-bold">{agent.runs}</div>
                   </div>
-                  <div className="bg-slate-50 rounded-lg p-3 col-span-2">
+                  <div className="bg-slate-50 rounded-lg p-3">
                     <div className="text-xs text-slate-500 mb-1">Avg Duration</div>
                     <div className="text-lg font-bold">{agent.avg_duration.toFixed(2)}s</div>
+                  </div>
+                  <div className={`rounded-lg p-3 ${agent.runs === 0 ? 'bg-slate-50' : agent.success_rate >= 0.95 ? 'bg-green-50' : agent.success_rate >= 0.8 ? 'bg-yellow-50' : 'bg-red-50'}`}>
+                    <div className={`text-xs mb-1 ${agent.runs === 0 ? 'text-slate-500' : agent.success_rate >= 0.95 ? 'text-green-600' : agent.success_rate >= 0.8 ? 'text-yellow-600' : 'text-red-600'}`}>Success Rate</div>
+                    <div className={`text-lg font-bold ${agent.runs === 0 ? 'text-slate-400' : agent.success_rate >= 0.95 ? 'text-green-700' : agent.success_rate >= 0.8 ? 'text-yellow-700' : 'text-red-700'}`}>
+                      {agent.runs === 0 ? 'N/A' : `${(agent.success_rate * 100).toFixed(1)}%`}
+                    </div>
                   </div>
                 </div>
 
@@ -213,7 +219,7 @@ export function MetricsPage() {
                 <div>
                   <div className="text-xs font-medium text-slate-500 mb-2">Tools</div>
                   {agent.tools.length === 0 ? (
-                    <div className="text-xs text-slate-400 italic">No tools (orchestrator)</div>
+                    <div className="text-xs text-slate-400 italic">No tool calls yet</div>
                   ) : (
                     <div className="space-y-2">
                       {agent.tools.map((tool) => (
@@ -225,6 +231,10 @@ export function MetricsPage() {
                           <div className="flex items-center gap-3 text-xs text-slate-600">
                             <span>{tool.calls} calls</span>
                             <span>{tool.avg_duration.toFixed(2)}s avg</span>
+                            <span className={`inline-flex items-center gap-1 ${tool.calls === 0 ? 'text-slate-400' : tool.success_rate >= 0.95 ? 'text-green-600' : tool.success_rate >= 0.8 ? 'text-yellow-600' : 'text-red-600'}`}>
+                              <CheckCircle className="h-3 w-3" />
+                              {tool.calls === 0 ? 'N/A' : `${(tool.success_rate * 100).toFixed(0)}%`}
+                            </span>
                           </div>
                         </div>
                       ))}

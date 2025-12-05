@@ -23,6 +23,7 @@ export interface ToolMetrics {
   name: string;
   calls: number;
   avg_duration: number;
+  success_rate: number;
 }
 
 export interface AgentDetailMetrics {
@@ -31,6 +32,7 @@ export interface AgentDetailMetrics {
   cost: number;
   runs: number;
   avg_duration: number;
+  success_rate: number;
   tools: ToolMetrics[];
   workflows: string[];
   subagents: string[];
