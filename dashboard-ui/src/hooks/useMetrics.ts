@@ -33,6 +33,7 @@ export interface AgentDetailMetrics {
   avg_duration: number;
   tools: ToolMetrics[];
   workflows: string[];
+  subagents: string[];
 }
 
 export interface TimeSeriesData {

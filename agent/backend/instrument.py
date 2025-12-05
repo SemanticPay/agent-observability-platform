@@ -57,6 +57,12 @@ AGENT_WORKFLOWS_INFO = Gauge(
     ["agent_name", "workflows"]
 )
 
+AGENT_SUBAGENTS_INFO = Gauge(
+    "adk_agent_subagents_info",
+    "Static info metric indicating the direct sub-agents of each agent",
+    ["agent_name", "subagents"]
+)
+
 AGENT_MODEL_INFO = Gauge(
     "adk_agent_model_info",
     "Static info metric indicating which model each agent uses",
@@ -324,10 +330,18 @@ def _register_agent_tool_metrics():
             if workflows:
                 workflows_str = ",".join(workflows)
                 AGENT_WORKFLOWS_INFO.labels(agent_name=agent_name, workflows=workflows_str).set(1)
-                logger.info(f"Registered workflow metric: agent={agent_name}, workflows={workflows_str}") 
+                logger.info(f"Registered workflow metric: agent={agent_name}, workflows={workflows_str}")
+
+            # Register sub-agents info
+            sub_agents = getattr(agent, 'sub_agents', [])
+            if sub_agents:
+                subagents_names = [getattr(sa, 'name', 'unknown') for sa in sub_agents]
+                subagents_str = ",".join(subagents_names)
+                AGENT_SUBAGENTS_INFO.labels(agent_name=agent_name, subagents=subagents_str).set(1)
+                logger.info(f"Registered subagents metric: agent={agent_name}, subagents={subagents_str}")
 
             # Recurse into sub_agents
-            for sub_agent in getattr(agent, 'sub_agents', []):
+            for sub_agent in sub_agents:
                 _process_agent(sub_agent, workflows)
         
         _process_agent(ORCHESTRATOR_AGENT, list())

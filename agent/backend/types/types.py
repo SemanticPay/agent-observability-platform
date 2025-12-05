@@ -132,6 +132,7 @@ class AgentDetailMetrics(BaseModel):
     avg_duration: float = 0.0
     tools: list[ToolMetrics] = Field(default_factory=list)
     workflows: list[str] = Field(default_factory=list)
+    subagents: list[str] = Field(default_factory=list)
 
 
 class AgentMetricsResponse(BaseModel):

@@ -483,6 +483,16 @@ async def get_agent_detail_metrics(time_range: str = "1h"):
                 if agent_name in agents_config and workflows_str:
                     agents_config[agent_name].workflows = workflows_str.split(",")
         
+        # Query agent subagents info
+        subagents_query = 'adk_agent_subagents_info'
+        subagents_result = await prometheus_client.query(subagents_query)
+        if subagents_result and subagents_result.get("result"):
+            for r in subagents_result["result"]:
+                agent_name = r["metric"].get("agent_name", "unknown")
+                subagents_str = r["metric"].get("subagents", "")
+                if agent_name in agents_config and subagents_str:
+                    agents_config[agent_name].subagents = subagents_str.split(",")
+        
         return AgentDetailResponse(
             agents=list(agents_config.values()),
             time_range=time_range
