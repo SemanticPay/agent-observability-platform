@@ -56,6 +56,14 @@ export interface AgentInfo {
   workflows: string[];
 }
 
+export interface ConversationMetrics {
+  total_conversations: number;
+  avg_cost_per_conversation: number;
+  avg_runs_per_conversation: number;
+  avg_tool_calls_per_conversation: number;
+  time_range: string;
+}
+
 export function useMetricsSummary(timeRange: string = "1h", refreshInterval: number = 30000) {
   const [data, setData] = useState<MetricsSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -198,6 +206,35 @@ export function useAgentsDetail(refreshInterval: number = 30000) {
     const interval = setInterval(fetchData, refreshInterval);
     return () => clearInterval(interval);
   }, [refreshInterval]);
+
+  return { data, loading, error };
+}
+
+export function useConversationMetrics(timeRange: string = "1h", refreshInterval: number = 30000) {
+  const [data, setData] = useState<ConversationMetrics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${API_BASE_URL}/api/metrics/conversations?time_range=${timeRange}`);
+        if (!response.ok) throw new Error("Failed to fetch conversation metrics");
+        const result = await response.json();
+        setData(result);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unknown error");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, refreshInterval);
+    return () => clearInterval(interval);
+  }, [timeRange, refreshInterval]);
 
   return { data, loading, error };
 }

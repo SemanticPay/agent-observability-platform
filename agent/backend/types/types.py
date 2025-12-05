@@ -181,3 +181,12 @@ class AgentInfo(BaseModel):
 class AgentInfoResponse(BaseModel):
     """Response containing static agent configuration."""
     agents: list[AgentInfo]
+
+
+class ConversationMetrics(BaseModel):
+    """Metrics averaged per conversation."""
+    total_conversations: int = 0
+    avg_cost_per_conversation: float = 0.0
+    avg_runs_per_conversation: float = 0.0
+    avg_tool_calls_per_conversation: float = 0.0
+    time_range: str

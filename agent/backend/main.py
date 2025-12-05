@@ -21,7 +21,8 @@ from agent.backend.types.types import (
     MetricsSummary, AgentMetrics, AgentMetricsResponse,
     TimeSeriesPoint, TimeSeriesData, TimeSeriesResponse,
     AgentInfo, AgentInfoResponse,
-    ToolMetrics, AgentDetailMetrics, AgentDetailResponse
+    ToolMetrics, AgentDetailMetrics, AgentDetailResponse,
+    ConversationMetrics
 )
 from agent.backend.database.photo import MockPhotoDatabase
 from agent.backend.photo.classification import classify_photo
@@ -661,6 +662,73 @@ async def get_agents_info():
     except Exception as e:
         logger.error(f"Error fetching agent config: {e}", exc_info=True)
         return AgentInfoResponse(agents=[])
+
+
+@app.get("/api/metrics/conversations", response_model=ConversationMetrics)
+async def get_conversation_metrics(time_range: str = "1h"):
+    """Get conversation-level metrics (averages per conversation).
+    
+    Args:
+        time_range: Time range string (e.g., '1h', '24h', '7d')
+        
+    Returns:
+        ConversationMetrics with averages per conversation
+    """
+    logger.info(f"Fetching conversation metrics for time_range={time_range}")
+    
+    try:
+        # Query total conversations
+        conversations_query = f'sum(increase(adk_conversations_total[{time_range}])) or vector(0)'
+        conversations_result = await prometheus_client.query(conversations_query)
+        total_conversations = 0
+        if conversations_result and conversations_result.get("result"):
+            for r in conversations_result["result"]:
+                val = float(r["value"][1]) if r.get("value") else 0
+                total_conversations = int(val)
+        
+        # Query total cost
+        cost_query = f'sum(increase(adk_llm_cost_dollars_total[{time_range}])) or vector(0)'
+        cost_result = await prometheus_client.query(cost_query)
+        total_cost = 0.0
+        if cost_result and cost_result.get("result"):
+            for r in cost_result["result"]:
+                val = float(r["value"][1]) if r.get("value") else 0
+                total_cost = val
+        
+        # Query total agent runs
+        runs_query = f'sum(increase(adk_agent_runs_total[{time_range}])) or vector(0)'
+        runs_result = await prometheus_client.query(runs_query)
+        total_runs = 0
+        if runs_result and runs_result.get("result"):
+            for r in runs_result["result"]:
+                val = float(r["value"][1]) if r.get("value") else 0
+                total_runs = int(val)
+        
+        # Query total tool calls
+        tool_calls_query = f'sum(increase(adk_tool_calls_total[{time_range}])) or vector(0)'
+        tool_calls_result = await prometheus_client.query(tool_calls_query)
+        total_tool_calls = 0
+        if tool_calls_result and tool_calls_result.get("result"):
+            for r in tool_calls_result["result"]:
+                val = float(r["value"][1]) if r.get("value") else 0
+                total_tool_calls = int(val)
+        
+        # Calculate averages (avoid division by zero)
+        avg_cost = total_cost / total_conversations if total_conversations > 0 else 0.0
+        avg_runs = total_runs / total_conversations if total_conversations > 0 else 0.0
+        avg_tool_calls = total_tool_calls / total_conversations if total_conversations > 0 else 0.0
+        
+        return ConversationMetrics(
+            total_conversations=total_conversations,
+            avg_cost_per_conversation=avg_cost,
+            avg_runs_per_conversation=avg_runs,
+            avg_tool_calls_per_conversation=avg_tool_calls,
+            time_range=time_range
+        )
+        
+    except Exception as e:
+        logger.error(f"Error fetching conversation metrics: {e}", exc_info=True)
+        return ConversationMetrics(time_range=time_range)
 
 
 if __name__ == "__main__":

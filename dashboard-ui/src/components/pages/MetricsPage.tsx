@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
-import { useMetricsSummary, useMetricsTimeSeries, useAgentsDetail } from "../../hooks/useMetrics";
+import { useMetricsSummary, useMetricsTimeSeries, useAgentsDetail, useConversationMetrics } from "../../hooks/useMetrics";
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer
@@ -13,6 +13,7 @@ export function MetricsPage() {
   const { data: summary, loading: summaryLoading, error: summaryError } = useMetricsSummary(timeRange);
   const { data: timeSeries, loading: timeSeriesLoading, error: timeSeriesError } = useMetricsTimeSeries(24, "5m");
   const { data: agentsDetail, loading: agentsLoading, error: agentsError } = useAgentsDetail();
+  const { data: conversationMetrics, loading: conversationLoading, error: conversationError } = useConversationMetrics(timeRange);
 
   return (
     <div className="space-y-6 p-6">
@@ -66,6 +67,51 @@ export function MetricsPage() {
           </Card>
         ))}
       </div>
+
+      {/* Conversation Metrics */}
+      <Card className="p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <MessageSquare className="h-5 w-5 text-blue-500" />
+          <h2 className="text-xl font-semibold">Conversation Metrics</h2>
+        </div>
+        {conversationLoading ? (
+          <div className="flex items-center justify-center h-24">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          </div>
+        ) : conversationError ? (
+          <div className="flex items-center justify-center h-24 text-red-500">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            {conversationError}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-blue-50 rounded-lg p-4">
+              <div className="text-xs text-blue-600 mb-1">Total Conversations</div>
+              <div className="text-2xl font-bold text-blue-700">
+                {conversationMetrics?.total_conversations ?? 0}
+              </div>
+            </div>
+            <div className="bg-emerald-50 rounded-lg p-4">
+              <div className="text-xs text-emerald-600 mb-1">Avg Cost / Conversation</div>
+              <div className="text-2xl font-bold text-emerald-700">
+                ${conversationMetrics?.avg_cost_per_conversation.toFixed(6) ?? "0.000000"}
+              </div>
+            </div>
+            <div className="bg-violet-50 rounded-lg p-4">
+              <div className="text-xs text-violet-600 mb-1">Avg Runs / Conversation</div>
+              <div className="text-2xl font-bold text-violet-700">
+                {conversationMetrics?.avg_runs_per_conversation.toFixed(1) ?? "0.0"}
+              </div>
+            </div>
+            <div className="bg-cyan-50 rounded-lg p-4">
+              <div className="text-xs text-cyan-600 mb-1">Avg Tool Calls / Conversation</div>
+              <div className="text-2xl font-bold text-cyan-700">
+                {conversationMetrics?.avg_tool_calls_per_conversation.toFixed(1) ?? "0.0"}
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* Cost Over Time Chart */}
       <Card className="p-6">

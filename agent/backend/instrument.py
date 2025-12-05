@@ -43,6 +43,13 @@ MODEL_PRICING = {
 DEFAULT_PRICING = {"prompt": 0.10, "completion": 0.40}
 
 # --- Metrics Definitions ---
+# Conversation Metrics
+CONVERSATIONS_TOTAL = Counter(
+    "adk_conversations_total",
+    "Total number of conversations initiated (new sessions created)",
+    []
+)
+
 # Agent Metrics
 
 AGENT_TOOL_INFO = Gauge(
@@ -300,6 +307,17 @@ def __call_tool_async_wrapper(original_func):
     return wrapper
 
 
+def _create_session_wrapper(original_method):
+    """Wrapper for InMemorySessionService.create_session to track new conversations."""
+    @functools.wraps(original_method)
+    async def wrapper(self, *args, **kwargs):
+        result = await original_method(self, *args, **kwargs)
+        CONVERSATIONS_TOTAL.inc()
+        logger.info(f"New conversation started, session_id={result.id}")
+        return result
+    return wrapper
+
+
 # --- Main Instrument Function ---
 
 def _register_agent_tool_metrics():
@@ -409,6 +427,14 @@ def instrument():
         "google.adk.flows.llm_flows.functions",
         "__call_tool_async",
         __call_tool_async_wrapper
+    )
+    
+    # 4. Patch Session Creation (track new conversations)
+    _patch_method(
+        "google.adk.sessions.in_memory_session_service",
+        "InMemorySessionService",
+        "create_session",
+        _create_session_wrapper
     )
     
     logger.info("Google ADK instrumentation applied.")
