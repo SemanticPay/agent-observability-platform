@@ -409,56 +409,104 @@ async def get_agent_detail_metrics(time_range: str = "1h"):
                 else:
                     agents_config[agent_name].model = model
         
-        # Query cost by agent
+        # Query cost by agent - try increase() first, fall back to instant value
         cost_query = f'sum by (agent_name) (increase(adk_llm_cost_dollars_total[{time_range}]))'
         cost_result = await prometheus_client.query(cost_query)
+        cost_found = False
         if cost_result and cost_result.get("result"):
             for r in cost_result["result"]:
                 agent_name = r["metric"].get("agent_name", "unknown")
                 val = float(r["value"][1]) if r.get("value") else 0
-                if agent_name in agents_config:
+                if agent_name in agents_config and val > 0:
                     agents_config[agent_name].cost = val
+                    cost_found = True
+        # Fallback: use instant counter values if increase() returned nothing
+        if not cost_found:
+            cost_instant_query = 'sum by (agent_name) (adk_llm_cost_dollars_total)'
+            cost_instant_result = await prometheus_client.query(cost_instant_query)
+            if cost_instant_result and cost_instant_result.get("result"):
+                for r in cost_instant_result["result"]:
+                    agent_name = r["metric"].get("agent_name", "unknown")
+                    val = float(r["value"][1]) if r.get("value") else 0
+                    if agent_name in agents_config:
+                        agents_config[agent_name].cost = val
         
-        # Query runs by agent
+        # Query runs by agent - try increase() first, fall back to instant value
         runs_query = f'sum by (agent_name) (increase(adk_agent_runs_total[{time_range}]))'
         runs_result = await prometheus_client.query(runs_query)
+        runs_found = False
         if runs_result and runs_result.get("result"):
             for r in runs_result["result"]:
                 agent_name = r["metric"].get("agent_name", "unknown")
                 val = float(r["value"][1]) if r.get("value") else 0
-                if agent_name in agents_config:
+                if agent_name in agents_config and val > 0:
                     agents_config[agent_name].runs = int(val)
+                    runs_found = True
+        # Fallback: use instant counter values
+        if not runs_found:
+            runs_instant_query = 'sum by (agent_name) (adk_agent_runs_total)'
+            runs_instant_result = await prometheus_client.query(runs_instant_query)
+            if runs_instant_result and runs_instant_result.get("result"):
+                for r in runs_instant_result["result"]:
+                    agent_name = r["metric"].get("agent_name", "unknown")
+                    val = float(r["value"][1]) if r.get("value") else 0
+                    if agent_name in agents_config:
+                        agents_config[agent_name].runs = int(val)
         
         # Query agent success rate (successful runs / total runs from metric)
         success_rate_query = f'sum by (agent_name) (increase(adk_agent_runs_total{{status="success"}}[{time_range}])) / sum by (agent_name) (increase(adk_agent_runs_total[{time_range}]))'
         success_rate_result = await prometheus_client.query(success_rate_query)
+        success_rate_found = False
         if success_rate_result and success_rate_result.get("result"):
             for r in success_rate_result["result"]:
                 agent_name = r["metric"].get("agent_name", "unknown")
                 val = _safe_float(float(r["value"][1])) if r.get("value") else 0.0
-                if agent_name in agents_config:
-                    agents_config[agent_name].success_rate = min(val, 1.0)  # Cap at 1.0
+                if agent_name in agents_config and val > 0:
+                    agents_config[agent_name].success_rate = min(val, 1.0)
+                    success_rate_found = True
+        # Fallback: use instant counter values
+        if not success_rate_found:
+            success_rate_instant_query = 'sum by (agent_name) (adk_agent_runs_total{status="success"}) / sum by (agent_name) (adk_agent_runs_total)'
+            success_rate_instant_result = await prometheus_client.query(success_rate_instant_query)
+            if success_rate_instant_result and success_rate_instant_result.get("result"):
+                for r in success_rate_instant_result["result"]:
+                    agent_name = r["metric"].get("agent_name", "unknown")
+                    val = _safe_float(float(r["value"][1])) if r.get("value") else 0.0
+                    if agent_name in agents_config:
+                        agents_config[agent_name].success_rate = min(val, 1.0)
         
         # Query avg duration by agent
         duration_query = f'avg by (agent_name) (rate(adk_agent_run_duration_seconds_sum[{time_range}]) / rate(adk_agent_run_duration_seconds_count[{time_range}]))'
         duration_result = await prometheus_client.query(duration_query)
+        duration_found = False
         if duration_result and duration_result.get("result"):
             for r in duration_result["result"]:
                 agent_name = r["metric"].get("agent_name", "unknown")
                 val = _safe_float(float(r["value"][1])) if r.get("value") else 0.0
-                if agent_name in agents_config:
+                if agent_name in agents_config and val > 0:
                     agents_config[agent_name].avg_duration = val
+                    duration_found = True
+        # Fallback: use instant histogram values (sum/count gives average)
+        if not duration_found:
+            duration_instant_query = 'sum by (agent_name) (adk_agent_run_duration_seconds_sum) / sum by (agent_name) (adk_agent_run_duration_seconds_count)'
+            duration_instant_result = await prometheus_client.query(duration_instant_query)
+            if duration_instant_result and duration_instant_result.get("result"):
+                for r in duration_instant_result["result"]:
+                    agent_name = r["metric"].get("agent_name", "unknown")
+                    val = _safe_float(float(r["value"][1])) if r.get("value") else 0.0
+                    if agent_name in agents_config:
+                        agents_config[agent_name].avg_duration = val
         
-        # Query tool calls by agent and tool
+        # Query tool calls by agent and tool - try increase() first
         tool_calls_query = f'sum by (agent_name, tool_name) (increase(adk_tool_calls_total[{time_range}]))'
         tool_calls_result = await prometheus_client.query(tool_calls_query)
+        tool_calls_found = False
         if tool_calls_result and tool_calls_result.get("result"):
             for r in tool_calls_result["result"]:
                 agent_name = r["metric"].get("agent_name", "unknown")
                 tool_name = r["metric"].get("tool_name", "unknown")
                 val = float(r["value"][1]) if r.get("value") else 0
-                if agent_name in agents_config:
-                    # Find or create tool metrics
+                if agent_name in agents_config and val > 0:
                     tool_metrics = next(
                         (t for t in agents_config[agent_name].tools if t.name == tool_name),
                         None
@@ -467,38 +515,93 @@ async def get_agent_detail_metrics(time_range: str = "1h"):
                         tool_metrics = ToolMetrics(name=tool_name)
                         agents_config[agent_name].tools.append(tool_metrics)
                     tool_metrics.calls = int(val)
+                    tool_calls_found = True
+        # Fallback: use instant counter values
+        if not tool_calls_found:
+            tool_calls_instant_query = 'sum by (agent_name, tool_name) (adk_tool_calls_total)'
+            tool_calls_instant_result = await prometheus_client.query(tool_calls_instant_query)
+            if tool_calls_instant_result and tool_calls_instant_result.get("result"):
+                for r in tool_calls_instant_result["result"]:
+                    agent_name = r["metric"].get("agent_name", "unknown")
+                    tool_name = r["metric"].get("tool_name", "unknown")
+                    val = float(r["value"][1]) if r.get("value") else 0
+                    if agent_name in agents_config:
+                        tool_metrics = next(
+                            (t for t in agents_config[agent_name].tools if t.name == tool_name),
+                            None
+                        )
+                        if not tool_metrics:
+                            tool_metrics = ToolMetrics(name=tool_name)
+                            agents_config[agent_name].tools.append(tool_metrics)
+                        tool_metrics.calls = int(val)
         
         # Query tool avg duration by agent and tool
         tool_duration_query = f'avg by (agent_name, tool_name) (rate(adk_tool_call_duration_seconds_sum[{time_range}]) / rate(adk_tool_call_duration_seconds_count[{time_range}]))'
         tool_duration_result = await prometheus_client.query(tool_duration_query)
+        tool_duration_found = False
         if tool_duration_result and tool_duration_result.get("result"):
             for r in tool_duration_result["result"]:
                 agent_name = r["metric"].get("agent_name", "unknown")
                 tool_name = r["metric"].get("tool_name", "unknown")
                 val = _safe_float(float(r["value"][1])) if r.get("value") else 0.0
-                if agent_name in agents_config:
+                if agent_name in agents_config and val > 0:
                     tool_metrics = next(
                         (t for t in agents_config[agent_name].tools if t.name == tool_name),
                         None
                     )
                     if tool_metrics:
                         tool_metrics.avg_duration = val
+                        tool_duration_found = True
+        # Fallback: use instant histogram values
+        if not tool_duration_found:
+            tool_duration_instant_query = 'sum by (agent_name, tool_name) (adk_tool_call_duration_seconds_sum) / sum by (agent_name, tool_name) (adk_tool_call_duration_seconds_count)'
+            tool_duration_instant_result = await prometheus_client.query(tool_duration_instant_query)
+            if tool_duration_instant_result and tool_duration_instant_result.get("result"):
+                for r in tool_duration_instant_result["result"]:
+                    agent_name = r["metric"].get("agent_name", "unknown")
+                    tool_name = r["metric"].get("tool_name", "unknown")
+                    val = _safe_float(float(r["value"][1])) if r.get("value") else 0.0
+                    if agent_name in agents_config:
+                        tool_metrics = next(
+                            (t for t in agents_config[agent_name].tools if t.name == tool_name),
+                            None
+                        )
+                        if tool_metrics:
+                            tool_metrics.avg_duration = val
         
         # Query tool success rate by agent and tool
         tool_success_query = f'sum by (agent_name, tool_name) (increase(adk_tool_calls_total{{status="success"}}[{time_range}])) / sum by (agent_name, tool_name) (increase(adk_tool_calls_total[{time_range}]))'
         tool_success_result = await prometheus_client.query(tool_success_query)
+        tool_success_found = False
         if tool_success_result and tool_success_result.get("result"):
             for r in tool_success_result["result"]:
                 agent_name = r["metric"].get("agent_name", "unknown")
                 tool_name = r["metric"].get("tool_name", "unknown")
                 val = _safe_float(float(r["value"][1])) if r.get("value") else 0.0
-                if agent_name in agents_config:
+                if agent_name in agents_config and val > 0:
                     tool_metrics = next(
                         (t for t in agents_config[agent_name].tools if t.name == tool_name),
                         None
                     )
                     if tool_metrics:
-                        tool_metrics.success_rate = min(val, 1.0)  # Cap at 1.0
+                        tool_metrics.success_rate = min(val, 1.0)
+                        tool_success_found = True
+        # Fallback: use instant counter values
+        if not tool_success_found:
+            tool_success_instant_query = 'sum by (agent_name, tool_name) (adk_tool_calls_total{status="success"}) / sum by (agent_name, tool_name) (adk_tool_calls_total)'
+            tool_success_instant_result = await prometheus_client.query(tool_success_instant_query)
+            if tool_success_instant_result and tool_success_instant_result.get("result"):
+                for r in tool_success_instant_result["result"]:
+                    agent_name = r["metric"].get("agent_name", "unknown")
+                    tool_name = r["metric"].get("tool_name", "unknown")
+                    val = _safe_float(float(r["value"][1])) if r.get("value") else 0.0
+                    if agent_name in agents_config:
+                        tool_metrics = next(
+                            (t for t in agents_config[agent_name].tools if t.name == tool_name),
+                            None
+                        )
+                        if tool_metrics:
+                            tool_metrics.success_rate = min(val, 1.0)
         
         # Query agent workflows info
         workflows_query = 'adk_agent_workflows_info'
