@@ -20,7 +20,7 @@ from agent.backend.types.types import (
     Photo, PhotoUploadResponse,
     MetricsSummary, AgentMetrics, AgentMetricsResponse,
     TimeSeriesPoint, TimeSeriesData, TimeSeriesResponse,
-    AgentConfigInfo, AgentConfigResponse,
+    AgentInfo, AgentInfoResponse,
     ToolMetrics, AgentDetailMetrics, AgentDetailResponse
 )
 from agent.backend.database.photo import MockPhotoDatabase
@@ -473,6 +473,16 @@ async def get_agent_detail_metrics(time_range: str = "1h"):
                     if tool_metrics:
                         tool_metrics.avg_duration = val
         
+        # Query agent workflows info
+        workflows_query = 'adk_agent_workflows_info'
+        workflows_result = await prometheus_client.query(workflows_query)
+        if workflows_result and workflows_result.get("result"):
+            for r in workflows_result["result"]:
+                agent_name = r["metric"].get("agent_name", "unknown")
+                workflows_str = r["metric"].get("workflows", "")
+                if agent_name in agents_config and workflows_str:
+                    agents_config[agent_name].workflows = workflows_str.split(",")
+        
         return AgentDetailResponse(
             agents=list(agents_config.values()),
             time_range=time_range
@@ -562,17 +572,17 @@ async def get_metrics_time_series(hours: int = 24, step: str = "5m"):
         )
 
 
-@app.get("/api/agents/info", response_model=AgentConfigResponse)
-async def get_agents_config():
-    """Get static configuration info for all agents (tools and models).
+@app.get("/api/agents/info", response_model=AgentInfoResponse)
+async def get_agents_info():
+    """Get static configuration info for all agents (tools, models, workflows).
     
     Returns:
-        AgentConfigResponse with agent names, models, and tools
+        AgentInfoResponse with agent names, models, tools, and workflows
     """
     logger.info("Fetching agent configuration")
     
     try:
-        agents_config: dict[str, AgentConfigInfo] = {}
+        agents_config: dict[str, AgentInfo] = {}
         
         # Query agent tool info
         tool_query = 'adk_agent_tool_info'
@@ -582,7 +592,7 @@ async def get_agents_config():
                 agent_name = r["metric"].get("agent_name", "unknown")
                 tool_name = r["metric"].get("tool_name", "")
                 if agent_name not in agents_config:
-                    agents_config[agent_name] = AgentConfigInfo(name=agent_name, model="", tools=[])
+                    agents_config[agent_name] = AgentInfo(name=agent_name, model="", tools=[])
                 if tool_name:
                     agents_config[agent_name].tools.append(tool_name)
         
@@ -594,15 +604,27 @@ async def get_agents_config():
                 agent_name = r["metric"].get("agent_name", "unknown")
                 model = r["metric"].get("model", "unknown")
                 if agent_name not in agents_config:
-                    agents_config[agent_name] = AgentConfigInfo(name=agent_name, model=model, tools=[])
+                    agents_config[agent_name] = AgentInfo(name=agent_name, model=model, tools=[])
                 else:
                     agents_config[agent_name].model = model
         
-        return AgentConfigResponse(agents=list(agents_config.values()))
+        # Query agent workflows info
+        workflows_query = 'adk_agent_workflows_info'
+        workflows_result = await prometheus_client.query(workflows_query)
+        if workflows_result and workflows_result.get("result"):
+            for r in workflows_result["result"]:
+                agent_name = r["metric"].get("agent_name", "unknown")
+                workflows_str = r["metric"].get("workflows", "")
+                if agent_name not in agents_config:
+                    agents_config[agent_name] = AgentInfo(name=agent_name, model="", tools=[])
+                if workflows_str:
+                    agents_config[agent_name].workflows = workflows_str.split(",")
+        
+        return AgentInfoResponse(agents=list(agents_config.values()))
         
     except Exception as e:
         logger.error(f"Error fetching agent config: {e}", exc_info=True)
-        return AgentConfigResponse(agents=[])
+        return AgentInfoResponse(agents=[])
 
 
 if __name__ == "__main__":

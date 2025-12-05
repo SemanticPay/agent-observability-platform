@@ -5,7 +5,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer
 } from "recharts";
-import { DollarSign, Cpu, Wrench, Clock, RefreshCw, Loader2, AlertCircle, Bot, Play } from "lucide-react";
+import { DollarSign, Cpu, Wrench, Clock, RefreshCw, Loader2, AlertCircle, Bot, Play, GitBranch } from "lucide-react";
 
 export function MetricsPage() {
   const [timeRange, setTimeRange] = useState("1h");
@@ -162,6 +162,21 @@ export function MetricsPage() {
                     {agent.model}
                   </span>
                 </div>
+
+                {/* Workflows */}
+                {agent.workflows && agent.workflows.length > 0 && (
+                  <div className="mb-4">
+                    <div className="text-xs font-medium text-slate-500 mb-2">Workflows</div>
+                    <div className="flex flex-wrap gap-1">
+                      {agent.workflows.map((workflow) => (
+                        <span key={workflow} className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs">
+                          <GitBranch className="h-3 w-3" />
+                          {workflow}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Metrics Grid */}
                 <div className="grid grid-cols-2 gap-3 mb-4">

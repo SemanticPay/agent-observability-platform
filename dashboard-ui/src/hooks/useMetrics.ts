@@ -32,6 +32,7 @@ export interface AgentDetailMetrics {
   runs: number;
   avg_duration: number;
   tools: ToolMetrics[];
+  workflows: string[];
 }
 
 export interface TimeSeriesData {
@@ -49,6 +50,7 @@ export interface AgentInfo {
   name: string;
   model: string;
   tools: string[];
+  workflows: string[];
 }
 
 export function useMetricsSummary(timeRange: string = "1h", refreshInterval: number = 30000) {

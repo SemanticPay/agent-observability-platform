@@ -20,3 +20,4 @@ scheduler_agent = Agent(
     ]
 )
 
+scheduler_agent._x_phare_workflow = "exam_scheduling"  # type: ignore

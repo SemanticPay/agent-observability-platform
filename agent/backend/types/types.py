@@ -131,6 +131,7 @@ class AgentDetailMetrics(BaseModel):
     runs: int = 0
     avg_duration: float = 0.0
     tools: list[ToolMetrics] = Field(default_factory=list)
+    workflows: list[str] = Field(default_factory=list)
 
 
 class AgentMetricsResponse(BaseModel):
@@ -166,13 +167,14 @@ class TimeSeriesResponse(BaseModel):
     step: str
 
 
-class AgentConfigInfo(BaseModel):
+class AgentInfo(BaseModel):
     """Static configuration info for an agent."""
     name: str
     model: str
     tools: list[str]
+    workflows: list[str] = Field(default_factory=list)
 
 
-class AgentConfigResponse(BaseModel):
+class AgentInfoResponse(BaseModel):
     """Response containing static agent configuration."""
-    agents: list[AgentConfigInfo]
+    agents: list[AgentInfo]

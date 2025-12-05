@@ -18,8 +18,7 @@ import functools
 import inspect
 import logging
 import sys
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST, Gauge
-from fastapi import APIRouter, Response
+from prometheus_client import Counter, Histogram, Gauge
 
 
 logger = logging.getLogger("adk_metrics")
@@ -50,6 +49,12 @@ AGENT_TOOL_INFO = Gauge(
     "adk_agent_tool_info",
     "Static info metric indicating which tools belong to which agent",
     ["agent_name", "tool_name"]
+)
+
+AGENT_WORKFLOWS_INFO = Gauge(
+    "adk_agent_workflows_info",
+    "Static info metric indicating which workflow(s) each agent is associated with",
+    ["agent_name", "workflows"]
 )
 
 AGENT_MODEL_INFO = Gauge(
@@ -296,7 +301,7 @@ def _register_agent_tool_metrics():
     try:
         from agent.backend.agents.orchestrator.agent import ORCHESTRATOR_AGENT
         
-        def _process_agent(agent):
+        def _process_agent(agent, workflows: list[str]):
             agent_name = getattr(agent, 'name', 'unknown')
             tools = getattr(agent, 'tools', [])
             model = getattr(agent, 'model', 'unknown')
@@ -311,16 +316,52 @@ def _register_agent_tool_metrics():
                     tool_name = getattr(tool, '__name__', str(tool))
                     AGENT_TOOL_INFO.labels(agent_name=agent_name, tool_name=tool_name).set(1)
                     logger.info(f"Registered tool metric: agent={agent_name}, tool={tool_name}")
-            
+
+            # Workflows get passed down from parent agents
+            if hasattr(agent, '_x_phare_workflow'):
+                workflows = workflows + [getattr(agent, '_x_phare_workflow')]
+
+            if workflows:
+                workflows_str = ",".join(workflows)
+                AGENT_WORKFLOWS_INFO.labels(agent_name=agent_name, workflows=workflows_str).set(1)
+                logger.info(f"Registered workflow metric: agent={agent_name}, workflows={workflows_str}") 
+
             # Recurse into sub_agents
             for sub_agent in getattr(agent, 'sub_agents', []):
-                _process_agent(sub_agent)
+                _process_agent(sub_agent, workflows)
         
-        _process_agent(ORCHESTRATOR_AGENT)
+        _process_agent(ORCHESTRATOR_AGENT, list())
         logger.info("Agent tool metrics registered.")
     except Exception as e:
         logger.error(f"Failed to register agent tool metrics: {e}")
 
+
+# WORKFLOW_STATE_KEY = "X-phare-workflow"
+
+# def _insert_workflow_in_state_tool(workflow: str, tool_context: ToolContext):
+#     """A tool that inserts a workflow string into the tool context state."""
+#     tool_context.state[WORKFLOW_STATE_KEY] = workflow
+#     logger.info(f"Inserted workflow '{workflow}' into tool context state")
+
+
+# def _register_workflow_tool():
+#     """Walk agent hierarchy and emit info metrics for each agent's tools and models."""
+
+#     instruction = """ALWAYS use the 'insert_workflow_in_state' tool to insert the selected workflow into the tool context state.
+#     The workflow string must be ONLY one of the following options:
+#     - drivers_license_qa
+#     - exam_scheduling
+#     Make sure the inserted workflow matches the user's intent based on the recent conversation context. Note that the user might change topics frequently. In case the user changes topics, update the workflow accordingly.
+#     Do NOT invent workflows that are not in the above list.
+#     """
+
+#     from agent.backend.agents.orchestrator.agent import ORCHESTRATOR_AGENT
+    
+#     ORCHESTRATOR_AGENT.tools.append(_insert_workflow_in_state_tool)
+#     logger.info("Registered workflow tool in orchestrator agent tools")
+#     if isinstance(ORCHESTRATOR_AGENT.instruction, str):
+#         ORCHESTRATOR_AGENT.instruction = instruction + "\n\n" + ORCHESTRATOR_AGENT.instruction # type: ignore
+#         logger.info("Registered workflow tool in orchestrator agent instruction")
 
 def instrument():
     """

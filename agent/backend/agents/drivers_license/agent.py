@@ -15,3 +15,4 @@ drivers_license_agent = Agent(
     ]
 )
 
+drivers_license_agent._x_phare_workflow = "drivers_license_qa"  # type: ignore
