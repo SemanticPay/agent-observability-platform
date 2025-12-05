@@ -369,60 +369,79 @@ def _register_agent_tool_metrics():
 
 
 def _emit_demo_metrics():
-    """Emit demo metrics to populate Prometheus on startup for dashboard preview."""
-    try:
-        from agent.backend.agents.orchestrator.agent import ORCHESTRATOR_AGENT
-        
-        demo_data = {
-            "orchestrator_agent": {"runs": 50, "errors": 2, "duration": 3.5, "cost": 0.0015},
-            "drivers_license_agent": {"runs": 30, "errors": 1, "duration": 2.8, "cost": 0.0008},
-            "scheduler_agent": {"runs": 20, "errors": 1, "duration": 4.2, "cost": 0.0006},
-        }
-        
-        def _process_agent(agent):
-            agent_name = getattr(agent, 'name', 'unknown')
-            model = getattr(agent, 'model', 'gemini-2.5-flash')
-            tools = getattr(agent, 'tools', [])
+    """Emit demo metrics periodically to populate Prometheus for dashboard preview.
+    
+    Runs in a background thread, emitting small increments every interval
+    so that increase() queries show non-zero values.
+    """
+    import threading
+    
+    def _emit_periodically():
+        try:
+            from agent.backend.agents.orchestrator.agent import ORCHESTRATOR_AGENT
             
-            data = demo_data.get(agent_name, {"runs": 10, "errors": 0, "duration": 1.0, "cost": 0.0001})
+            # Smaller increments emitted every 30 seconds
+            demo_data = {
+                "orchestrator_agent": {"runs": 2, "errors": 0, "duration": 3.5, "cost": 0.00005},
+                "drivers_license_agent": {"runs": 1, "errors": 0, "duration": 2.8, "cost": 0.00003},
+                "scheduler_agent": {"runs": 1, "errors": 0, "duration": 4.2, "cost": 0.00002},
+            }
             
-            # Agent runs (success + error)
-            success_runs = data["runs"] - data["errors"]
-            AGENT_RUNS.labels(agent_name=agent_name, status="success").inc(success_runs)
-            if data["errors"] > 0:
-                AGENT_RUNS.labels(agent_name=agent_name, status="error").inc(data["errors"])
+            def _process_agent(agent):
+                agent_name = getattr(agent, 'name', 'unknown')
+                model = getattr(agent, 'model', 'gemini-2.5-flash')
+                tools = getattr(agent, 'tools', [])
+                
+                data = demo_data.get(agent_name, {"runs": 1, "errors": 0, "duration": 1.0, "cost": 0.00001})
+                
+                # Agent runs (success + error)
+                success_runs = data["runs"] - data["errors"]
+                AGENT_RUNS.labels(agent_name=agent_name, status="success").inc(success_runs)
+                if data["errors"] > 0:
+                    AGENT_RUNS.labels(agent_name=agent_name, status="error").inc(data["errors"])
+                
+                # Agent duration
+                for _ in range(data["runs"]):
+                    AGENT_DURATION.labels(agent_name=agent_name).observe(data["duration"])
+                
+                # LLM metrics
+                LLM_REQUESTS.labels(model=model, agent_name=agent_name, status="success").inc(data["runs"])
+                LLM_TOKENS.labels(model=model, agent_name=agent_name, type="prompt").inc(data["runs"] * 500)
+                LLM_TOKENS.labels(model=model, agent_name=agent_name, type="completion").inc(data["runs"] * 200)
+                LLM_TOKENS.labels(model=model, agent_name=agent_name, type="total").inc(data["runs"] * 700)
+                LLM_COST.labels(model=model, agent_name=agent_name).inc(data["cost"])
+                LLM_DURATION.labels(model=model, agent_name=agent_name).observe(data["duration"] * 0.8)
+                
+                # Tool metrics - emit for each tool
+                for tool in tools:
+                    tool_name = getattr(tool, '__name__', str(tool))
+                    TOOL_CALLS.labels(tool_name=tool_name, agent_name=agent_name, status="success").inc(1)
+                    TOOL_DURATION.labels(tool_name=tool_name, agent_name=agent_name).observe(0.5)
+                
+                # Recurse
+                for sub_agent in getattr(agent, 'sub_agents', []):
+                    _process_agent(sub_agent)
             
-            # Agent duration
-            for _ in range(data["runs"]):
-                AGENT_DURATION.labels(agent_name=agent_name).observe(data["duration"])
+            # Emit initial batch for immediate visibility
+            for _ in range(10):
+                _process_agent(ORCHESTRATOR_AGENT)
+            CONVERSATIONS_TOTAL.inc(5)
+            logger.info("Initial demo metrics emitted.")
             
-            # LLM metrics
-            LLM_REQUESTS.labels(model=model, agent_name=agent_name, status="success").inc(data["runs"])
-            LLM_TOKENS.labels(model=model, agent_name=agent_name, type="prompt").inc(data["runs"] * 500)
-            LLM_TOKENS.labels(model=model, agent_name=agent_name, type="completion").inc(data["runs"] * 200)
-            LLM_TOKENS.labels(model=model, agent_name=agent_name, type="total").inc(data["runs"] * 700)
-            LLM_COST.labels(model=model, agent_name=agent_name).inc(data["cost"])
-            LLM_DURATION.labels(model=model, agent_name=agent_name).observe(data["duration"] * 0.8)
-            
-            # Tool metrics
-            for tool in tools:
-                tool_name = getattr(tool, '__name__', str(tool))
-                tool_calls = data["runs"] // 2 + 1
-                TOOL_CALLS.labels(tool_name=tool_name, agent_name=agent_name, status="success").inc(tool_calls)
-                TOOL_DURATION.labels(tool_name=tool_name, agent_name=agent_name).observe(0.5)
-            
-            # Recurse
-            for sub_agent in getattr(agent, 'sub_agents', []):
-                _process_agent(sub_agent)
-        
-        _process_agent(ORCHESTRATOR_AGENT)
-        
-        # Emit demo conversations (total runs ~100 across 25 conversations = ~4 runs/conversation)
-        CONVERSATIONS_TOTAL.inc(25)
-        
-        logger.info("Demo metrics emitted.")
-    except Exception as e:
-        logger.error(f"Failed to emit demo metrics: {e}")
+            # Then emit periodically in background
+            while True:
+                time.sleep(30)  # Emit every 30 seconds
+                _process_agent(ORCHESTRATOR_AGENT)
+                CONVERSATIONS_TOTAL.inc(1)
+                logger.debug("Periodic demo metrics emitted.")
+                
+        except Exception as e:
+            logger.error(f"Failed to emit demo metrics: {e}")
+    
+    # Start background thread
+    thread = threading.Thread(target=_emit_periodically, daemon=True)
+    thread.start()
+    logger.info("Demo metrics background emitter started.")
 
 
 # WORKFLOW_STATE_KEY = "X-phare-workflow"
