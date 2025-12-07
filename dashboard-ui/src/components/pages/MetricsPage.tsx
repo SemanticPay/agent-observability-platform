@@ -16,17 +16,13 @@ export function MetricsPage() {
   const { data: agentsDetail, loading: agentsLoading, error: agentsError } = useAgentsDetail();
   const { data: conversationMetrics, loading: conversationLoading, error: conversationError } = useConversationMetrics(timeRange);
 
-  console.log("SUMMARY", summary)
-  console.log("AGENT DATA", agentData)
-  console.log("TIME SERIES", timeSeries)
-
   // Make data available to the Copilot
   useCopilotReadable({
     description: "Dashboard data including sales trends, product performance, and category distribution",
     value: {
       summary,
-      agentData,
-      // timeSeries, 
+      agentsDetail,
+      // timeSeries, // Removed because it couldn't handle the load
     }
   });
 

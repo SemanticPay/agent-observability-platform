@@ -14,8 +14,6 @@ const PORT = process.env.COPILOTKIT_PORT || 4000;
 app.use(cors());
 app.use(express.json());
 
-console.log(process.env.GOOGLE_API_KEY)
-
 const serviceAdapter = new GoogleGenerativeAIAdapter({
   model: 'gemini-2.0-flash',
 });
