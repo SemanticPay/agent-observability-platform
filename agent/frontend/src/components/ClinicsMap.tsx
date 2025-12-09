@@ -24,8 +24,8 @@ interface ClinicsMapProps {
 }
 
 const mapContainerStyle = {
-  width: "100%",
-  height: "300px",
+  width: "70%",
+  aspectRatio: "6 / 2",
   borderRadius: "12px",
 };
 

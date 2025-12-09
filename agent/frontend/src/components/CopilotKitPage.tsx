@@ -249,7 +249,7 @@ export default function CopilotKitPage() {
       </div>
 
       {/* Chat Sidebar */}
-      <div className="w-[420px] bg-white border-l border-blue-100 flex flex-col shadow-lg">
+      <div className="w-[420px] min-w-[420px] max-w-[420px] bg-white border-l border-blue-100 flex flex-col shadow-lg overflow-hidden">
         {/* Header */}
         <div className="p-4 border-b border-blue-100 bg-blue-600">
           <h2 className="text-white font-semibold text-lg">Agent Assistant</h2>
@@ -257,14 +257,18 @@ export default function CopilotKitPage() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 bg-gray-50">
           {messages.map((message) => (
             <div
               key={message.id}
               className={`flex flex-col ${message.role === "user" ? "items-end" : "items-start"}`}
             >
               <div
-                className="max-w-[85%] rounded-2xl px-4 py-3 bg-white text-gray-800 shadow-sm border border-gray-200"
+                className="rounded-2xl px-4 py-3 bg-white text-gray-800 shadow-sm border border-gray-200 overflow-hidden"
+                style={{ 
+                  maxWidth: message.role === "assistant" ? "1000px" : "75%",
+                  wordBreak: "break-word"
+                }}
               >
                 {message.role === "user" && (
                   <p className="text-xs text-blue-600 font-medium mb-1">You</p>
@@ -272,7 +276,7 @@ export default function CopilotKitPage() {
                 {message.role === "assistant" && (
                   <p className="text-xs text-gray-500 font-medium mb-1">Assistant</p>
                 )}
-                <div className="prose prose-sm max-w-none">
+                <div className="prose prose-sm" style={{ maxWidth: "100%" }}>
                   <ReactMarkdown>{message.content}</ReactMarkdown>
                 </div>
               </div>
