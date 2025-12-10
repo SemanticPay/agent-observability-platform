@@ -28,10 +28,12 @@ dashboard:
 	cd dashboard-ui/new && npm run dev
 
 .PHONY: dashboard-chat
+dashboard-chat:
 	@echo "Starting dashboard chat server..."
 	cd dashboard-ui/new && npm run server
 
 .PHONY: prometheus
+prometheus:
 	@echo "Starting Prometheus..."
 	docker compose up
 

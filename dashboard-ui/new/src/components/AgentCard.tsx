@@ -103,7 +103,7 @@ export function AgentCard({ agent, onClick }: AgentCardProps) {
             {agent.tools.map((tool, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between bg-white border border-[#ADC4C2] rounded px-3 py-3"
+                className="flex items-center justify-between bg-white border border-[#ADC4C2] rounded px-4 py-4"
               >
                 <span className="text-xs text-[#000F0C]">{tool.name}</span>
                 <div className="flex items-center gap-2 text-xs text-[#53706C]">
