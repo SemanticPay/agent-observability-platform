@@ -1,5 +1,5 @@
 .PHONY: install
-install: install-backend install-frontend
+install: install-backend install-frontend install-dashboard
 	@echo "✓ All dependencies installed"
 
 .PHONY: install-backend
@@ -11,6 +11,11 @@ install-backend:
 install-frontend:
 	@echo "Installing Node.js frontend dependencies..."
 	cd agent/frontend && npm install
+
+.PHONY: install-dashboard
+install-dashboard:
+	@echo "Installing Node.js dashboard dependencies..."
+	cd dashboard-ui/new && npm install
 
 .PHONY: backend
 backend:
