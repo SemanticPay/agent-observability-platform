@@ -8,6 +8,10 @@ import { Activity, Zap, DollarSign, Clock, TrendingUp, CheckCircle, Loader2 } fr
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { useMetricsSummary, useAgentsDetail, useConversationMetrics } from './hooks/useMetrics';
+import { CopilotSidebar } from "@copilotkit/react-ui";
+import { useCopilotReadable } from "@copilotkit/react-core";
+import { prompt } from "./prompt";
+import { CustomAssistantMessage } from "./components/AssistantMessage";
 
 // Convert UI time period to backend format
 // UI: '1d', '1mo', '3mo', '1yr', 'Max'
@@ -43,6 +47,27 @@ export default function App() {
 
   // Combined loading state
   const isLoading = summaryLoading || agentsLoading || conversationLoading;
+
+  // Make data available to the Copilot assistant
+  useCopilotReadable({
+    description: "Current time",
+    value: new Date().toLocaleTimeString(),
+  });
+
+  useCopilotReadable({
+    description: "Dashboard metrics summary including total cost, runs, and execution duration",
+    value: summary,
+  });
+
+  useCopilotReadable({
+    description: "Detailed agent metrics including cost, runs, tools, and success rate for each agent",
+    value: agentsDetail,
+  });
+
+  useCopilotReadable({
+    description: "Conversation metrics including total conversations and cost per conversation",
+    value: conversationMetrics,
+  });
 
   // Switch to 'agent' tab when moving from Total to a specific workflow
   useEffect(() => {
@@ -496,6 +521,17 @@ export default function App() {
           onClose={() => setSelectedAgent(null)}
         />
       )}
+
+      {/* CopilotKit Sidebar */}
+      <CopilotSidebar
+        instructions={prompt}
+        AssistantMessage={CustomAssistantMessage}
+        labels={{
+          title: "Data Assistant",
+          initial: "Hello! I'm here to help you understand your agent metrics. Ask me about costs, performance, or any data you see on this dashboard.",
+          placeholder: "Ask about agents, costs, or metrics...",
+        }}
+      />
     </div>
   );
 }
