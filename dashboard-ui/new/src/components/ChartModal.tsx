@@ -3,32 +3,50 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tool
 
 interface ChartModalProps {
   metricName: string;
+  currentValue: number;  // Actual value from the metric card
   onClose: () => void;
   timePeriod: string;
 }
 
-export function ChartModal({ metricName, onClose, timePeriod }: ChartModalProps) {
-  // Generate mock time series data
+/**
+ * TODO: Replace mock data with real backend time-series data
+ * 
+ * Current issues:
+ * - Data is completely mock (hardcoded base values + sine wave + random noise)
+ * - Values are NOT aligned with actual backend metrics displayed in metric cards
+ * - Success rate can incorrectly exceed 100% due to random variance calculation
+ * - No real historical data from backend
+ * 
+ * To fix:
+ * 1. Use useMetricsTimeSeries hook from hooks/useMetrics.ts (already available)
+ * 2. Backend currently provides: cost, duration, tool_calls time-series
+ * 3. Need backend endpoints for: sessions, agent_invocations, success_rate time-series
+ * 4. Pass the actual current metric value to ensure chart aligns with card values
+ * 5. Apply proper bounds (e.g., success_rate should be clamped to 0-100)
+ */
+export function ChartModal({ metricName, currentValue, onClose, timePeriod }: ChartModalProps) {
+  // WARNING: This generates MOCK time-series data, but now uses the actual current value as base
+  // See TODO above for proper implementation with real historical data
   const generateData = () => {
     const dataPoints = timePeriod === '1d' ? 24 : timePeriod === '1mo' ? 30 : timePeriod === '3mo' ? 90 : timePeriod === '1yr' ? 365 : 730;
     const data = [];
     const now = new Date();
     
     for (let i = 0; i < dataPoints; i++) {
-      const baseValue = {
-        sessions: 12000,
-        agentInvocations: 45000,
-        costVsBudget: 800,
-        avgLatency: 1.2,
-        avgCostPerSession: 0.07,
-        successRate: 98
-      }[metricName] || 0;
+      // Use actual current value from the metric card as the base
+      const baseValue = currentValue;
 
-      // Create more variation with sine wave + random noise
-      const variance = baseValue * 0.15;
+      // Generate variance around the actual value (still mock time-series, but aligned with card)
+      const variancePercent = metricName === 'successRate' ? 0.02 : 0.15; // Less variance for success rate
+      const variance = baseValue * variancePercent;
       const sineWave = Math.sin(i / 3) * variance;
       const randomNoise = (Math.random() - 0.5) * variance * 0.5;
-      const value = baseValue + sineWave + randomNoise;
+      let value = baseValue + sineWave + randomNoise;
+      
+      // Clamp success rate to valid range (0-100)
+      if (metricName === 'successRate') {
+        value = Math.max(0, Math.min(100, value));
+      }
 
       // Calculate date going backwards from now
       const date = new Date(now);
@@ -41,7 +59,7 @@ export function ChartModal({ metricName, onClose, timePeriod }: ChartModalProps)
       data.push({
         time: i,
         date: date,
-        value: parseFloat(value.toFixed(2))
+        value: parseFloat(value.toFixed(4))
       });
     }
     
@@ -50,20 +68,21 @@ export function ChartModal({ metricName, onClose, timePeriod }: ChartModalProps)
 
   const data = generateData();
 
+  // NOTE: All labels include "(Mock Data)" since charts use generated mock data
   const metricLabels: Record<string, string> = {
-    sessions: 'Sessions',
-    agentInvocations: 'Agent Invocations',
-    costVsBudget: 'Cost',
-    avgLatency: 'Latency',
-    avgCostPerSession: 'Cost/Session',
-    successRate: 'Success Rate'
+    sessions: 'Sessions (Mock Data)',
+    agentInvocations: 'Agent Invocations (Mock Data)',
+    costVsBudget: 'Cost (Mock Data)',
+    avgLatency: 'Latency (Mock Data)',
+    avgCostPerSession: 'Cost/Session (Mock Data)',
+    successRate: 'Success Rate (Mock Data)'
   };
 
   const formatValue = (value: number) => {
     switch (metricName) {
       case 'costVsBudget':
       case 'avgCostPerSession':
-        return `$${value.toFixed(2)}`;
+        return `$${value.toFixed(4)}`;
       case 'avgLatency':
         return `${value.toFixed(2)}s`;
       case 'successRate':

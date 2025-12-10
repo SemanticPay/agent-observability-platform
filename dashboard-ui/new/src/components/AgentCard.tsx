@@ -1,9 +1,16 @@
-import { Bot, Wrench } from 'lucide-react';
+import { Bot, Wrench, CheckCircle } from 'lucide-react';
+
+interface Tool {
+  name: string;
+  calls: number;
+  avg_duration: number;
+  success_rate: number;
+}
 
 interface Agent {
   name: string;
   description: string;
-  parent: string;
+  subAgents: string[];
   model: string;
   workflow: string;
   totalCost: number;
@@ -12,7 +19,7 @@ interface Agent {
   successRate: number;
   avgLatency: number;
   toolCalls: number;
-  tools: string[];
+  tools: Tool[];
 }
 
 interface AgentCardProps {
@@ -35,8 +42,10 @@ export function AgentCard({ agent, onClick }: AgentCardProps) {
         <p className="text-xs text-[#53706C] mb-3 ml-6">{agent.description}</p>
         <div className="grid grid-cols-3 gap-2 text-xs">
           <div>
-            <div className="text-[#53706C]">Parent</div>
-            <div className="text-[#000F0C]">{agent.parent}</div>
+            <div className="text-[#53706C]">Sub-agents</div>
+            <div className="text-[#000F0C]">
+              {agent.subAgents?.length > 0 ? agent.subAgents.join(', ') : '—'}
+            </div>
           </div>
           <div>
             <div className="text-[#53706C]">Model</div>
@@ -56,7 +65,7 @@ export function AgentCard({ agent, onClick }: AgentCardProps) {
         <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
           <div>
             <div className="text-[#53706C]">Total Cost</div>
-            <div className="text-[#000F0C]">${agent.totalCost.toFixed(2)}</div>
+            <div className="text-[#000F0C]">${agent.totalCost.toFixed(4)}</div>
           </div>
           <div>
             <div className="text-[#53706C]">Invocations</div>
@@ -64,7 +73,7 @@ export function AgentCard({ agent, onClick }: AgentCardProps) {
           </div>
           <div>
             <div className="text-[#53706C]">Cost/Invocation</div>
-            <div className="text-[#000F0C]">${agent.costPerInvocation.toFixed(3)}</div>
+            <div className="text-[#000F0C]">${agent.costPerInvocation.toFixed(5)}</div>
           </div>
           <div>
             <div className="text-[#53706C]">Success Rate</div>
@@ -72,7 +81,7 @@ export function AgentCard({ agent, onClick }: AgentCardProps) {
           </div>
           <div>
             <div className="text-[#53706C]">Latency</div>
-            <div className="text-[#000F0C]">{agent.avgLatency}ms</div>
+            <div className="text-[#000F0C]">{agent.avgLatency.toFixed(2)}ms</div>
           </div>
           <div>
             <div className="text-[#53706C]">Tool Calls</div>
@@ -87,16 +96,31 @@ export function AgentCard({ agent, onClick }: AgentCardProps) {
           <Wrench className="w-3.5 h-3.5 text-[#53706C]" />
           <div className="text-xs text-[#53706C]">MCP Tools</div>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {agent.tools.map((tool, index) => (
-            <span
-              key={index}
-              className="px-2 py-0.5 bg-white text-[#53706C] border border-[#ADC4C2] rounded text-xs"
-            >
-              {tool}
-            </span>
-          ))}
-        </div>
+        {agent.tools.length === 0 ? (
+          <div className="text-xs text-[#53706C] italic">No tool calls yet</div>
+        ) : (
+          <div className="space-y-2">
+            {agent.tools.map((tool, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between bg-white border border-[#ADC4C2] rounded px-3 py-3"
+              >
+                <span className="text-xs text-[#000F0C]">{tool.name}</span>
+                <div className="flex items-center gap-2 text-xs text-[#53706C]">
+                  <span>{tool.calls} calls</span>
+                  <span className={`inline-flex items-center gap-0.5 ${
+                    tool.calls === 0 ? 'text-[#53706C]' : 
+                    tool.success_rate >= 0.95 ? 'text-green-600' : 
+                    tool.success_rate >= 0.8 ? 'text-yellow-600' : 'text-red-600'
+                  }`}>
+                    <CheckCircle className="w-3 h-3" />
+                    {tool.calls === 0 ? 'N/A' : `${(tool.success_rate * 100).toFixed(0)}%`}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

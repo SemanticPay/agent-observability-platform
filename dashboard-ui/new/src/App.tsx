@@ -1,21 +1,48 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Header } from './components/Header';
 import { MetricCard } from './components/MetricCard';
 import { AgentCard } from './components/AgentCard';
 import { ChartModal } from './components/ChartModal';
 import { AgentModal } from './components/AgentModal';
-import { Activity, Zap, DollarSign, Clock, TrendingUp, CheckCircle } from 'lucide-react';
+import { Activity, Zap, DollarSign, Clock, TrendingUp, CheckCircle, Loader2 } from 'lucide-react';
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { useMetricsSummary, useAgentsDetail, useConversationMetrics } from './hooks/useMetrics';
+
+// Convert UI time period to backend format
+// UI: '1d', '1mo', '3mo', '1yr', 'Max'
+// Backend: '24h', '30d', '90d', '365d', '9999d'
+function toBackendTimeRange(uiPeriod: string): string {
+  switch (uiPeriod) {
+    case '1d': return '24h';
+    case '1mo': return '30d';
+    case '3mo': return '90d';
+    case '1yr': return '365d';
+    case 'Max': return '9999d'; // Large value for "all time"
+    default: return '24h';
+  }
+}
 
 export default function App() {
-  const [timePeriod, setTimePeriod] = useState('1mo');
+  // UI time period format for display/charts
+  const [timePeriod, setTimePeriod] = useState('1d');
   const [workflow, setWorkflow] = useState('Total');
   const [modalMetric, setModalMetric] = useState<string | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
   const [costBreakdownTab, setCostBreakdownTab] = useState<'workflow' | 'agent' | 'model'>('workflow');
   const [sortBy, setSortBy] = useState<'totalCost' | 'invocations' | 'costPerInvocation' | 'avgLatency' | 'toolCalls' | 'successRate'>('totalCost');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  // Convert to backend format for API calls
+  const backendTimeRange = toBackendTimeRange(timePeriod);
+
+  // Fetch data from backend using converted time range
+  const { data: summary, loading: summaryLoading, error: summaryError } = useMetricsSummary(backendTimeRange);
+  const { data: agentsDetail, loading: agentsLoading, error: agentsError } = useAgentsDetail(backendTimeRange);
+  const { data: conversationMetrics, loading: conversationLoading, error: conversationError } = useConversationMetrics(backendTimeRange);
+
+  // Combined loading state
+  const isLoading = summaryLoading || agentsLoading || conversationLoading;
 
   // Switch to 'agent' tab when moving from Total to a specific workflow
   useEffect(() => {
@@ -24,43 +51,113 @@ export default function App() {
     }
   }, [workflow, costBreakdownTab]);
 
-  // Mock data based on selected filters
-  const getMetricData = () => {
-    const baseData = {
-      sessions: { value: 12847, sparkline: [8200, 10100, 9500, 11200, 10800, 12300, 12847], delta: 4.3 },
-      agentInvocations: { value: 48293, sparkline: [32000, 38000, 35000, 42000, 40000, 47000, 48293], delta: 2.7 },
-      costVsBudget: { value: 847, budget: 1200, percentage: 70.6, delta: -5.2 },
-      avgLatency: { value: 1.2, sparkline: [1.5, 1.3, 1.45, 1.25, 1.35, 1.21, 1.2], delta: -8.4 },
-      avgCostPerSession: { value: 0.07, sparkline: [0.09, 0.08, 0.085, 0.075, 0.078, 0.071, 0.07], delta: -7.9 },
-      successRate: { value: 98.4, sparkline: [97.2, 98.1, 97.8, 98.3, 98.0, 98.3, 98.4], delta: 1.2 }
+  // Calculate average success rate from all agents
+  const avgSuccessRate = useMemo(() => {
+    if (!agentsDetail || agentsDetail.length === 0) return 0;
+    const totalRuns = agentsDetail.reduce((sum, agent) => sum + agent.runs, 0);
+    if (totalRuns === 0) return 0;
+    // Weighted average by runs
+    const weightedSum = agentsDetail.reduce((sum, agent) => sum + (agent.success_rate * agent.runs), 0);
+    return (weightedSum / totalRuns) * 100;
+  }, [agentsDetail]);
+
+  // Map backend data to UI metrics format
+  const metrics = useMemo(() => {
+    // Helper to generate realistic sparkline around a value
+    const generateSparkline = (value: number, variance: number = 0.15) => {
+      const points = 7;
+      return Array.from({ length: points }, (_, i) => {
+        // Trend upward toward current value
+        const progress = i / (points - 1);
+        const base = value * (0.85 + progress * 0.15);
+        const noise = (Math.random() - 0.5) * variance * value;
+        return Math.max(0, base + noise);
+      });
     };
 
-    return baseData;
-  };
+    const sessions = conversationMetrics?.total_conversations ?? 0;
+    const runs = summary?.total_runs ?? 0;
+    const cost = summary?.total_cost ?? 0;
+    const latency = summary?.avg_execution_duration ?? 0;
+    const costPerSession = conversationMetrics?.avg_cost_per_conversation ?? 0;
 
-  const metrics = getMetricData();
+    return {
+      sessions: { 
+        value: sessions, 
+        // TODO: Get sparkline from backend time-series endpoint
+        sparkline: generateSparkline(sessions, 0.2), 
+        // TODO: Calculate delta from historical data
+        delta: 4.3 
+      },
+      agentInvocations: { 
+        value: runs, 
+        // TODO: Get sparkline from backend time-series endpoint
+        sparkline: generateSparkline(runs, 0.15), 
+        // TODO: Calculate delta from historical data
+        delta: 2.7 
+      },
+      costVsBudget: { 
+        value: cost, 
+        // TODO: Backend doesn't provide budget - keeping hardcoded
+        budget: 1200, 
+        // Calculate percentage from cost and budget
+        percentage: cost > 0 ? (cost / 1200) * 100 : 0,
+        // TODO: Get sparkline from backend time-series endpoint
+        sparkline: generateSparkline(cost, 0.15),
+        // TODO: Calculate delta from historical data
+        delta: -5.2 
+      },
+      avgLatency: { 
+        value: latency, 
+        // TODO: Get sparkline from backend time-series endpoint
+        sparkline: generateSparkline(latency, 0.1), 
+        // TODO: Calculate delta from historical data
+        delta: -8.4 
+      },
+      avgCostPerSession: { 
+        value: costPerSession, 
+        // TODO: Get sparkline from backend time-series endpoint
+        sparkline: generateSparkline(costPerSession, 0.12), 
+        // TODO: Calculate delta from historical data
+        delta: -7.9 
+      },
+      successRate: { 
+        value: avgSuccessRate, 
+        // TODO: Get sparkline from backend time-series endpoint
+        sparkline: generateSparkline(avgSuccessRate, 0.02), 
+        // TODO: Calculate delta from historical data
+        delta: 1.2 
+      }
+    };
+  }, [summary, conversationMetrics, avgSuccessRate]);
 
-  // Workflow cost breakdown data
-  const workflowCostData = [
-    { name: 'Driver License Renewal', value: 712.45, color: '#53706C' },
-    { name: 'Digital Vehicle Transfer', value: 89.30, color: '#6E8C88' },
-    { name: 'Annual Licensing', value: 45.25, color: '#ADC4C2' }
-  ];
+  // TODO: Get workflow cost breakdown from backend when multiple workflows are supported
+  // Currently all agents belong to "Driver License Renewal", so we sum up all agent costs
+  const workflowCostData = useMemo(() => {
+    const totalWorkflowCost = agentsDetail.reduce((sum, agent) => sum + agent.cost, 0);
+    return [
+      { name: 'Driver License Renewal', value: totalWorkflowCost, color: '#53706C' },
+    ];
+  }, [agentsDetail]);
 
-  // Agent cost breakdown data
-  const agentCostData = [
-    { name: 'Orchestrator', value: 312.45, color: '#53706C' },
-    { name: 'license_renewal_qa_agent', value: 156.20, color: '#6E8C88' },
-    { name: 'medical_appointment_agent', value: 243.80, color: '#ADC4C2' },
-    { name: 'Other Agents', value: 134.55, color: '#D4E3E1' }
-  ];
+  // Generate agent cost breakdown from backend data
+  const agentCostData = useMemo(() => {
+    const colors = ['#53706C', '#6E8C88', '#ADC4C2', '#D4E3E1'];
+    return agentsDetail.map((agent, index) => ({
+      name: agent.name,
+      value: agent.cost,
+      color: colors[index % colors.length]
+    }));
+  }, [agentsDetail]);
 
-  // Model cost breakdown data
-  const modelCostData = [
-    { name: 'gemini-2.0-flash', value: 678.90, color: '#53706C' },
-    { name: 'gpt-4o-mini', value: 123.45, color: '#6E8C88' },
-    { name: 'claude-3-haiku', value: 44.65, color: '#ADC4C2' }
-  ];
+  // TODO: Get model cost breakdown from backend when it's available
+  // Currently all agents use gemini-2.5-flash, so we use the total agent cost
+  const modelCostData = useMemo(() => {
+    const totalModelCost = agentsDetail.reduce((sum, agent) => sum + agent.cost, 0);
+    return [
+      { name: 'gemini-2.5-flash', value: totalModelCost, color: '#53706C' },
+    ];
+  }, [agentsDetail]);
 
   const getCostData = () => {
     switch (costBreakdownTab) {
@@ -75,56 +172,29 @@ export default function App() {
     }
   };
 
-  const agents = [
-    {
-      name: 'Orchestrator',
-      description: 'Coordinates the entire license renewal workflow and delegates tasks to specialized agents',
-      parent: '—',
-      model: 'gemini-2.0-flash',
-      workflow: 'Driver License Renewal',
-      totalCost: 312.45,
-      invocations: 14203,
-      costPerInvocation: 0.022,
-      successRate: 99.1,
-      avgLatency: 890,
-      toolCalls: 28406,
-      tools: [
-        'check_renewal_eligibility',
-        'get_required_exams_and_nearby_clinics',
-        'check_exam_results',
-        'get_payment_options',
-        'check_payment_and_delivery_status'
-      ]
-    },
-    {
-      name: 'license_renewal_qa_agent',
-      description: 'Answers questions about license renewal rules and regulations',
-      parent: 'Orchestrator',
-      model: 'gemini-2.0-flash',
-      workflow: 'Driver License Renewal',
-      totalCost: 156.20,
-      invocations: 8942,
-      costPerInvocation: 0.017,
-      successRate: 98.8,
-      avgLatency: 620,
-      toolCalls: 8942,
-      tools: ['search_rules']
-    },
-    {
-      name: 'medical_appointment_agent',
-      description: 'Helps users find credentialed clinics and check medical exam results',
-      parent: 'Orchestrator',
-      model: 'gemini-2.0-flash',
-      workflow: 'Driver License Renewal',
-      totalCost: 243.80,
-      invocations: 11568,
-      costPerInvocation: 0.021,
-      successRate: 97.9,
-      avgLatency: 1140,
-      toolCalls: 23136,
-      tools: ['search_credentialed_clinics', 'check_exam_results']
-    }
-  ];
+  // Map backend agent data to UI agent format
+  const agents = useMemo(() => {
+    return agentsDetail.map(agent => {
+      const totalToolCalls = agent.tools.reduce((sum, tool) => sum + tool.calls, 0);
+      return {
+        name: agent.name,
+        // TODO: Backend doesn't provide description - using placeholder
+        description: `Agent: ${agent.name}`,
+        subAgents: agent.subagents ?? [],
+        model: agent.model,
+        // TODO: Backend doesn't provide workflow - using first workflow or placeholder
+        workflow: agent.workflows?.[0] ?? 'Unknown',
+        totalCost: agent.cost,
+        invocations: agent.runs,
+        costPerInvocation: agent.runs > 0 ? agent.cost / agent.runs : 0,
+        successRate: agent.success_rate * 100, // Backend returns 0-1, UI expects 0-100
+        avgLatency: agent.avg_duration * 1000, // Backend returns seconds, UI expects milliseconds
+        toolCalls: totalToolCalls,
+        // Pass full tool data for detailed display (name, calls, avg_duration, success_rate)
+        tools: agent.tools
+      };
+    });
+  }, [agentsDetail]);
 
   // Sort agents
   const sortedAgents = [...agents].sort((a, b) => {
@@ -182,7 +252,7 @@ export default function App() {
             >
               Driver License Renewal
             </button>
-            <button
+            {/* <button
               onClick={() => setWorkflow('Digital Vehicle Transfer')}
               className={`px-4 py-2.5 text-sm transition-colors border-b-2 ${
                 workflow === 'Digital Vehicle Transfer'
@@ -201,7 +271,7 @@ export default function App() {
               }`}
             >
               Annual Licensing
-            </button>
+            </button> */}
           </div>
         </div>
       </div>
@@ -212,7 +282,7 @@ export default function App() {
           <div className="grid grid-cols-3 gap-4 auto-rows-fr">
             <MetricCard
               label="Sessions"
-              value={metrics.sessions.value.toLocaleString()}
+              value={summaryLoading ? '...' : metrics.sessions.value.toLocaleString()}
               sparklineData={metrics.sessions.sparkline}
               onClick={() => setModalMetric('sessions')}
               icon={<Activity className="w-4 h-4" />}
@@ -221,7 +291,7 @@ export default function App() {
             />
             <MetricCard
               label="Agent Invocations"
-              value={metrics.agentInvocations.value.toLocaleString()}
+              value={summaryLoading ? '...' : metrics.agentInvocations.value.toLocaleString()}
               sparklineData={metrics.agentInvocations.sparkline}
               onClick={() => setModalMetric('agentInvocations')}
               icon={<Zap className="w-4 h-4" />}
@@ -230,10 +300,10 @@ export default function App() {
             />
             <MetricCard
               label="Cost"
-              value={metrics.costVsBudget.value.toString()}
+              value={summaryLoading ? '...' : `${metrics.costVsBudget.value.toFixed(4)}`}
               budget={metrics.costVsBudget.budget}
               donutPercentage={timePeriod === '1mo' ? metrics.costVsBudget.percentage : undefined}
-              sparklineData={timePeriod === '1d' ? undefined : metrics.sessions.sparkline}
+              sparklineData={timePeriod !== '1mo' ? metrics.costVsBudget.sparkline : undefined}
               onClick={() => setModalMetric('costVsBudget')}
               icon={<DollarSign className="w-4 h-4" />}
               color="#53706C"
@@ -242,7 +312,7 @@ export default function App() {
             />
             <MetricCard
               label="Latency"
-              value={`${metrics.avgLatency.value}s`}
+              value={summaryLoading ? '...' : `${metrics.avgLatency.value.toFixed(2)}s`}
               sparklineData={metrics.avgLatency.sparkline}
               onClick={() => setModalMetric('avgLatency')}
               icon={<Clock className="w-4 h-4" />}
@@ -252,7 +322,7 @@ export default function App() {
             />
             <MetricCard
               label="Cost/Session"
-              value={`$${metrics.avgCostPerSession.value}`}
+              value={conversationLoading ? '...' : `$${metrics.avgCostPerSession.value.toFixed(4)}`}
               sparklineData={metrics.avgCostPerSession.sparkline}
               onClick={() => setModalMetric('avgCostPerSession')}
               icon={<TrendingUp className="w-4 h-4" />}
@@ -262,7 +332,7 @@ export default function App() {
             />
             <MetricCard
               label="Success Rate"
-              value={`${metrics.successRate.value}%`}
+              value={agentsLoading ? '...' : `${metrics.successRate.value.toFixed(1)}%`}
               sparklineData={metrics.successRate.sparkline}
               onClick={() => setModalMetric('successRate')}
               icon={<CheckCircle className="w-4 h-4" />}
@@ -328,7 +398,7 @@ export default function App() {
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number) => `$${value.toFixed(2)}`}
+                  formatter={(value: number) => `$${value.toFixed(4)}`}
                   contentStyle={{
                     backgroundColor: '#F0FFFC',
                     border: '1px solid #ADC4C2',
@@ -349,7 +419,7 @@ export default function App() {
                     />
                     <span className="text-[#000F0C]">{item.name}</span>
                   </div>
-                  <span className="text-[#53706C]">${item.value.toFixed(2)}</span>
+                  <span className="text-[#53706C]">${item.value.toFixed(4)}</span>
                 </div>
               ))}
             </div>
@@ -391,11 +461,21 @@ export default function App() {
             </div>
           </div>
           
-          <div className="grid grid-cols-3 gap-4">
-            {sortedAgents.map((agent, index) => (
-              <AgentCard key={index} agent={agent} onClick={() => setSelectedAgent(agent)} />
-            ))}
-          </div>
+          {agentsLoading ? (
+            <div className="flex items-center justify-center h-48">
+              <Loader2 className="w-8 h-8 animate-spin text-[#53706C]" />
+            </div>
+          ) : agentsError ? (
+            <div className="flex items-center justify-center h-48 text-red-500">
+              Error loading agents: {agentsError}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-4">
+              {sortedAgents.map((agent, index) => (
+                <AgentCard key={index} agent={agent} onClick={() => setSelectedAgent(agent)} />
+              ))}
+            </div>
+          )}
         </section>
       </main>
 
@@ -403,6 +483,7 @@ export default function App() {
       {modalMetric && (
         <ChartModal
           metricName={modalMetric}
+          currentValue={metrics[modalMetric as keyof typeof metrics]?.value ?? 0}
           onClose={() => setModalMetric(null)}
           timePeriod={timePeriod}
         />
