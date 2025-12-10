@@ -25,7 +25,15 @@ frontend:
 .PHONY: dashboard
 dashboard:
 	@echo "Starting dashboard..."
-	cd dashboard-ui && npm run dev
+	cd dashboard-ui/new && npm run dev
+
+.PHONY: dashboard-chat
+	@echo "Starting dashboard chat server..."
+	cd dashboard-ui/new && npm run server
+
+.PHONY: prometheus
+	@echo "Starting Prometheus..."
+	docker compose up
 
 all:
 	@echo "Starting both backend and frontend..."
