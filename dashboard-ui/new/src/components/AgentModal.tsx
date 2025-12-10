@@ -5,7 +5,7 @@ import { useState } from 'react';
 interface Agent {
   name: string;
   description: string;
-  parent: string;
+  subAgents: string[];
   model: string;
   workflow: string;
   totalCost: number;
@@ -27,7 +27,10 @@ type TimeHorizon = '7d' | '30d' | '90d';
 export function AgentModal({ agent, onClose }: AgentModalProps) {
   const [timeHorizon, setTimeHorizon] = useState<TimeHorizon>('30d');
 
-  // Generate mock time series data based on time horizon
+  // TODO: Replace mock data with real per-agent time-series from backend
+  // Backend has the Prometheus metrics (adk_llm_cost_dollars_total, adk_agent_runs_total, etc.)
+  // but no endpoint currently exposes time-series data per agent.
+  // Need to create: GET /api/metrics/time-series/agent/{agent_name}
   const generateTimeSeriesData = (metric: string, horizon: TimeHorizon) => {
     const days = horizon === '7d' ? 7 : horizon === '30d' ? 30 : 90;
     const data = [];
@@ -71,13 +74,14 @@ export function AgentModal({ agent, onClose }: AgentModalProps) {
     return data;
   };
 
+  // NOTE: All chart labels include "(Mock)" since time-series data is generated, not from backend
   const metrics = [
-    { key: 'totalCost', label: 'Total Cost', color: '#53706C', format: (v: number) => `$${v.toFixed(2)}` },
-    { key: 'invocations', label: 'Invocations', color: '#6E8C88', format: (v: number) => v.toLocaleString() },
-    { key: 'costPerInvocation', label: 'Cost/Invocation', color: '#53706C', format: (v: number) => `$${v.toFixed(3)}` },
-    { key: 'successRate', label: 'Success Rate', color: '#6E8C88', format: (v: number) => `${v.toFixed(1)}%` },
-    { key: 'latency', label: 'Latency', color: '#53706C', format: (v: number) => `${v.toFixed(0)}ms` },
-    { key: 'toolCalls', label: 'Tool Calls', color: '#6E8C88', format: (v: number) => v.toLocaleString() },
+    { key: 'totalCost', label: 'Total Cost (Mock)', color: '#53706C', format: (v: number) => `$${v.toFixed(4)}` },
+    { key: 'invocations', label: 'Invocations (Mock)', color: '#6E8C88', format: (v: number) => v.toLocaleString() },
+    { key: 'costPerInvocation', label: 'Cost/Invocation (Mock)', color: '#53706C', format: (v: number) => `$${v.toFixed(5)}` },
+    { key: 'successRate', label: 'Success Rate (Mock)', color: '#6E8C88', format: (v: number) => `${v.toFixed(1)}%` },
+    { key: 'latency', label: 'Latency (Mock)', color: '#53706C', format: (v: number) => `${v.toFixed(0)}ms` },
+    { key: 'toolCalls', label: 'Tool Calls (Mock)', color: '#6E8C88', format: (v: number) => v.toLocaleString() },
   ];
 
   return (
@@ -96,8 +100,10 @@ export function AgentModal({ agent, onClose }: AgentModalProps) {
             <p className="text-sm text-[#53706C]">{agent.description}</p>
             <div className="flex gap-4 mt-3 text-xs">
               <div>
-                <span className="text-[#53706C]">Parent: </span>
-                <span className="text-[#000F0C]">{agent.parent}</span>
+                <span className="text-[#53706C]">Sub-agents: </span>
+                <span className="text-[#000F0C]">
+                  {agent.subAgents?.length > 0 ? agent.subAgents.join(', ') : '—'}
+                </span>
               </div>
               <div>
                 <span className="text-[#53706C]">Model: </span>
