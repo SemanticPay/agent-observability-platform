@@ -102,9 +102,24 @@ Implemented full JWT authentication system with user registration, login, and to
 
 ---
 
-## Phase 4: WDK Spark Integration ⏳
+## Phase 4: WDK Spark Integration (Stubbed)
+**Status**: ✅ Complete
 
-**Status**: Not started
+### Summary
+Created stubbed Lightning Network payment module for development.
+
+### Files Created
+- `agent/backend/spark/__init__.py` - Module exports
+- `agent/backend/spark/types.py` - Invoice, PaymentStatus Pydantic models
+- `agent/backend/spark/client.py` - Abstract SparkClient base class
+- `agent/backend/spark/stub.py` - StubSparkClient implementation with fake BOLT11 generation
+
+### Key Features
+- Generates realistic-looking fake BOLT11 invoice strings (`lnbc...`)
+- In-memory invoice storage
+- Simulates payment confirmation after 3 `check_payment()` calls
+- `get_spark_client()` factory respects `SPARK_MODE` config
+- Helper methods `force_pay()` and `get_invoice()` for testing
 
 ---
 
@@ -138,26 +153,6 @@ Implemented full JWT authentication system with user registration, login, and to
 
 ---
 
-## Phase 4: WDK Spark Integration (Stubbed)
-**Status**: ✅ Complete
-
-### Summary
-Created stubbed Lightning Network payment module for development.
-
-### Files Created
-- `agent/backend/spark/__init__.py` - Module exports
-- `agent/backend/spark/types.py` - Invoice, PaymentStatus Pydantic models
-- `agent/backend/spark/client.py` - Abstract SparkClient base class
-- `agent/backend/spark/stub.py` - StubSparkClient implementation with fake BOLT11 generation
-
-### Key Features
-- Generates realistic-looking fake BOLT11 invoice strings (`lnbc...`)
-- In-memory invoice storage
-- Simulates payment confirmation after 3 `check_payment()` calls
-- `get_spark_client()` factory respects `SPARK_MODE` config
-- Helper methods `force_pay()` and `get_invoice()` for testing
-
----
 
 ## Metrics
 
