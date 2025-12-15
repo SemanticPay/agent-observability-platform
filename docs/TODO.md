@@ -98,41 +98,41 @@
 ## Phase 3: Authentication System
 
 ### 3.1 Auth Dependencies
-- [ ] Add `python-jose[cryptography]` and `passlib[bcrypt]` to `requirements.txt`
+- [x] Add `python-jose[cryptography]` and `passlib[bcrypt]` to `requirements.txt`
 
 ### 3.2 Auth Module
-- [ ] Create `agent/backend/auth/__init__.py`
-- [ ] Create `agent/backend/auth/models.py`:
+- [x] Create `agent/backend/auth/__init__.py`
+- [x] Create `agent/backend/auth/models.py`:
   - `UserCreate` (email, password)
   - `UserInDB` (id, email, password_hash, created_at)
   - `Token` (access_token, refresh_token, token_type, expires_in)
-- [ ] Create `agent/backend/auth/utils.py`:
+- [x] Create `agent/backend/auth/utils.py`:
   - `hash_password(password) -> str`
   - `verify_password(password, hash) -> bool`
   - `create_access_token(data, expires_delta) -> str`
   - `create_refresh_token(data) -> str`
   - `decode_token(token) -> dict`
-- [ ] Create `agent/backend/auth/dependencies.py`:
+- [x] Create `agent/backend/auth/dependencies.py`:
   - `get_current_user(token) -> UserInDB` (FastAPI dependency)
   - OAuth2PasswordBearer scheme
 
 ### 3.3 User Repository
-- [ ] Create `agent/backend/repositories/__init__.py`
-- [ ] Create `agent/backend/repositories/users.py`:
+- [x] Create `agent/backend/repositories/__init__.py`
+- [x] Create `agent/backend/repositories/users.py`:
   - `create_user(db, user: UserCreate) -> UserInDB`
   - `get_user_by_email(db, email) -> UserInDB | None`
   - `get_user_by_id(db, user_id) -> UserInDB | None`
 
 ### 3.4 Auth Endpoints
-- [ ] Create `agent/backend/routes/__init__.py`
-- [ ] Create `agent/backend/routes/auth.py`:
+- [x] Create `agent/backend/routes/__init__.py`
+- [x] Create `agent/backend/routes/auth.py`:
   - `POST /api/v1/auth/register` - Create new user
   - `POST /api/v1/auth/login` - Returns `{access_token, refresh_token, expires_in}`
   - `POST /api/v1/auth/refresh` - Refresh access token
-- [ ] Mount auth router in `main.py`
+- [x] Mount auth router in `main.py`
 
 ### 3.5 Auth Types
-- [ ] Add to `agent/backend/types/types.py`:
+- [x] Add to `agent/backend/types/types.py`:
   - `RegisterRequest`
   - `LoginRequest`
   - `LoginResponse`
@@ -144,24 +144,24 @@
 ## Phase 4: WDK Spark Integration (Stubbed)
 
 ### 4.1 Spark Types
-- [ ] Create `agent/backend/spark/__init__.py`
-- [ ] Create `agent/backend/spark/types.py`:
+- [x] Create `agent/backend/spark/__init__.py`
+- [x] Create `agent/backend/spark/types.py`:
   - `Invoice` (invoice_id, bolt11, amount_sats, memo, created_at)
   - `PaymentStatus` (invoice_id, paid, paid_at)
 
 ### 4.2 Spark Client Interface
-- [ ] Create `agent/backend/spark/client.py`:
+- [x] Create `agent/backend/spark/client.py`:
   - Abstract `SparkClient` class:
     - `async create_invoice(amount_sats: int, memo: str) -> Invoice`
     - `async check_payment(invoice_id: str) -> PaymentStatus`
 
 ### 4.3 Spark Stub Implementation
-- [ ] Create `agent/backend/spark/stub.py`:
+- [x] Create `agent/backend/spark/stub.py`:
   - `StubSparkClient(SparkClient)`:
     - Generate fake BOLT11 strings (lnbc...)
     - Store invoices in memory
     - `check_payment()` returns paid=True after 3rd call (simulates payment)
-- [ ] Create `get_spark_client()` factory that returns stub or real based on `SPARK_MODE`
+- [x] Create `get_spark_client()` factory that returns stub or real based on `SPARK_MODE`
 
 ---
 

@@ -65,9 +65,40 @@ docker-compose up -d postgres
 
 ---
 
-## Phase 3: Authentication System ⏳
+## Phase 3: Authentication System ✅
 
-**Status**: Not started
+**Completed**: December 15, 2025
+
+### Summary
+Implemented full JWT authentication system with user registration, login, and token refresh endpoints.
+
+### Changes
+| File | Change |
+|------|--------|
+| `requirements.txt` | Added `python-jose[cryptography]`, `passlib[bcrypt]` |
+| `agent/backend/auth/__init__.py` | Module exports |
+| `agent/backend/auth/models.py` | UserCreate, UserInDB, Token, TokenData models |
+| `agent/backend/auth/utils.py` | Password hashing, JWT token creation/verification |
+| `agent/backend/auth/dependencies.py` | FastAPI `get_current_user` dependency |
+| `agent/backend/repositories/__init__.py` | Repository exports |
+| `agent/backend/repositories/users.py` | User CRUD operations |
+| `agent/backend/routes/__init__.py` | Route exports |
+| `agent/backend/routes/auth.py` | Auth endpoints (register, login, refresh) |
+| `agent/backend/types/types.py` | Added auth request/response types |
+| `agent/backend/main.py` | Mounted auth router |
+
+### API Endpoints Added
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/register` | Create new user |
+| POST | `/api/v1/auth/login` | Get JWT tokens (OAuth2 flow) |
+| POST | `/api/v1/auth/refresh` | Refresh access token |
+
+### Security Features
+- bcrypt password hashing
+- JWT access tokens (30 min expiry)
+- JWT refresh tokens (7 day expiry)
+- OAuth2PasswordBearer for protected routes
 
 ---
 
@@ -107,15 +138,36 @@ docker-compose up -d postgres
 
 ---
 
+## Phase 4: WDK Spark Integration (Stubbed)
+**Status**: ✅ Complete
+
+### Summary
+Created stubbed Lightning Network payment module for development.
+
+### Files Created
+- `agent/backend/spark/__init__.py` - Module exports
+- `agent/backend/spark/types.py` - Invoice, PaymentStatus Pydantic models
+- `agent/backend/spark/client.py` - Abstract SparkClient base class
+- `agent/backend/spark/stub.py` - StubSparkClient implementation with fake BOLT11 generation
+
+### Key Features
+- Generates realistic-looking fake BOLT11 invoice strings (`lnbc...`)
+- In-memory invoice storage
+- Simulates payment confirmation after 3 `check_payment()` calls
+- `get_spark_client()` factory respects `SPARK_MODE` config
+- Helper methods `force_pay()` and `get_invoice()` for testing
+
+---
+
 ## Metrics
 
 | Metric | Value |
 |--------|-------|
-| Phases Completed | 2/9 |
-| Files Created | 3 |
-| Files Modified | 4 |
-| New Dependencies | 1 |
-| API Endpoints Added | 0 |
+| Phases Completed | 4/9 |
+| Files Created | 14 |
+| Files Modified | 6 |
+| New Dependencies | 3 |
+| API Endpoints Added | 3 |
 
 ---
 
