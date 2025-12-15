@@ -190,3 +190,38 @@ class ConversationMetrics(BaseModel):
     avg_runs_per_conversation: float = 0.0
     avg_tool_calls_per_conversation: float = 0.0
     time_range: str
+
+
+# --- Auth Request/Response Types ---
+
+class RegisterRequest(BaseModel):
+    """Request model for user registration."""
+    email: str
+    password: str = Field(..., min_length=8)
+
+
+class LoginRequest(BaseModel):
+    """Request model for user login."""
+    email: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    """Response model for successful login."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
+class TokenRefreshRequest(BaseModel):
+    """Request model for token refresh."""
+    refresh_token: str
+
+
+class TokenRefreshResponse(BaseModel):
+    """Response model for token refresh."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int

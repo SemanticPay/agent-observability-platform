@@ -27,6 +27,7 @@ from agent.backend.types.types import (
 )
 from agent.backend.database.photo import MockPhotoDatabase
 from agent.backend.photo.classification import classify_photo
+from agent.backend.routes.auth import router as auth_router
 from config import UPLOAD_DIR
 
 
@@ -45,6 +46,10 @@ app = FastAPI(
     version="1.0.0",
 )
 logger.info("FastAPI application initialized")
+
+# Mount API routers
+app.include_router(auth_router)
+logger.info("Auth router mounted at /api/v1/auth")
 
 # Create metrics endpoint
 metrics_app = make_asgi_app()
