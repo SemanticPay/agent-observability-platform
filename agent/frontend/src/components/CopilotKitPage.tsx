@@ -5,6 +5,12 @@ import ReactMarkdown from "react-markdown";
 import { useCopilotAction, useCopilotChat } from "@copilotkit/react-core";
 import LocationPicker, { SelectedLocation } from "./LocationPicker";
 import ClinicsMap, { Clinic } from "./ClinicsMap";
+import { AuthProvider, useAuth } from "../context/AuthContext";
+import { useRenewalFlow, RenewalFormData } from "../hooks/useRenewalFlow";
+import { LoginForm } from "./LoginForm";
+import { RenewalForm } from "./RenewalForm";
+import { PaymentQR } from "./PaymentQR";
+import { PaymentStatus } from "./PaymentStatus";
 
 interface Message {
   id: string;
@@ -15,7 +21,7 @@ interface Message {
   userLocation?: { lat: number; lng: number }; // User's search location
 }
 
-export default function CopilotKitPage() {
+function CopilotKitPageInner() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -87,6 +93,123 @@ export default function CopilotKitPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
               <span className="font-medium">Location selected!</span>
+            </div>
+          </div>
+        );
+      }
+      return null;
+    },
+  });
+
+  // Renewal flow state
+  const { user, isAuthenticated } = useAuth();
+  const renewalFlow = useRenewalFlow();
+
+  // CopilotKit action for starting CNH renewal with Lightning payment
+  useCopilotAction({
+    name: "start_driver_license_renewal",
+    description: "Starts the driver's license (CNH) renewal process with Lightning Network payment. Use this when the user wants to renew their driver's license and pay using Bitcoin Lightning.",
+    parameters: [
+      {
+        name: "renewal_type",
+        type: "string",
+        description: "Type of renewal: 'standard' for regular renewal, 'change_category' for category change",
+        required: false,
+      },
+    ],
+    handler: async ({ renewal_type }) => {
+      // Start the renewal flow
+      renewalFlow.startFlow();
+      
+      if (!isAuthenticated) {
+        return "Please log in or create an account to start the renewal process. The login form is now displayed.";
+      }
+      
+      return `Starting ${renewal_type || 'standard'} CNH renewal process. Please fill out the renewal form.`;
+    },
+    render: ({ status }) => {
+      if (status === "executing" || renewalFlow.currentStep !== "idle") {
+        // Render the appropriate component based on flow state
+        if (!isAuthenticated && renewalFlow.currentStep !== "idle") {
+          return (
+            <div className="my-4">
+              <LoginForm
+                onSuccess={() => renewalFlow.setStep("form")}
+                onRegisterClick={() => {}}
+              />
+            </div>
+          );
+        }
+        
+        if (renewalFlow.currentStep === "form") {
+          return (
+            <div className="my-4">
+              <RenewalForm
+                onSubmit={async (data: RenewalFormData) => {
+                  renewalFlow.setFormData(data);
+                  // Create operation and get payment invoice
+                  try {
+                    const response = await fetch("http://localhost:8000/api/v1/operations/", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        operation_type: "cnh_renewal",
+                        user_id: user?.id || 1,
+                        details: data,
+                      }),
+                    });
+                    const operation = await response.json();
+                    renewalFlow.setOperationId(operation.id);
+                    
+                    // Get invoice
+                    const invoiceRes = await fetch(`http://localhost:8000/api/v1/operations/${operation.id}/invoice`);
+                    const invoiceData = await invoiceRes.json();
+                    renewalFlow.setInvoice(invoiceData);
+                    renewalFlow.setStep("payment");
+                  } catch (error) {
+                    console.error("Error creating operation:", error);
+                  }
+                }}
+                isLoading={renewalFlow.isLoading}
+              />
+            </div>
+          );
+        }
+        
+        if (renewalFlow.currentStep === "payment" && renewalFlow.invoice) {
+          return (
+            <div className="my-4">
+              <PaymentQR
+                invoice={renewalFlow.invoice.bolt11}
+                amount={renewalFlow.invoice.amount_sats}
+                expiresAt={renewalFlow.invoice.expires_at}
+                onPaymentConfirmed={() => renewalFlow.setStep("confirmation")}
+              />
+            </div>
+          );
+        }
+        
+        if (renewalFlow.currentStep === "confirmation") {
+          return (
+            <div className="my-4">
+              <PaymentStatus
+                status="confirmed"
+                operationId={renewalFlow.operationId || undefined}
+                ticketId={renewalFlow.ticketId || undefined}
+                message="Your CNH renewal request has been submitted successfully!"
+                onClose={() => renewalFlow.reset()}
+              />
+            </div>
+          );
+        }
+        
+        return (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 my-2">
+            <div className="flex items-center gap-2 text-blue-700">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="font-medium">Starting renewal process...</span>
             </div>
           </div>
         );
@@ -363,5 +486,14 @@ export default function CopilotKitPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Wrap with AuthProvider for auth context
+export default function CopilotKitPageWithAuth() {
+  return (
+    <AuthProvider>
+      <CopilotKitPageInner />
+    </AuthProvider>
   );
 }

@@ -313,34 +313,34 @@
 ## Phase 8: Frontend Tools (CopilotKit)
 
 ### 8.1 Install Dependencies
-- [ ] Add `qrcode.react` to `agent/frontend/package.json` for QR code display
+- [x] Add `qrcode.react` to `agent/frontend/package.json` for QR code display
 
 ### 8.2 Renewal Form Component
-- [ ] Create `agent/frontend/src/components/RenewalForm.tsx`:
+- [x] Create `agent/frontend/src/components/RenewalForm.tsx`:
   - Fields: CPF (masked input), CNH Number, CNH Mirror
   - Client-side validation
   - Submit handler calls API
   - Props: onSubmit, onCancel
 
 ### 8.3 Payment QR Component
-- [ ] Create `agent/frontend/src/components/PaymentQR.tsx`:
+- [x] Create `agent/frontend/src/components/PaymentQR.tsx`:
   - Display BOLT11 invoice as QR code
   - Show amount in sats
   - Copy invoice button
   - Props: invoice, amount_sats
 
 ### 8.4 Payment Status Component
-- [ ] Create `agent/frontend/src/components/PaymentStatus.tsx`:
+- [x] Create `agent/frontend/src/components/PaymentStatus.tsx`:
   - Show pending/paid status
   - "Confirm Payment" button
   - Success animation on paid
   - Props: ticket_id, status, onConfirm
 
 ### 8.5 Frontend Tool: start_driver_license_renewal
-- [ ] Create `agent/frontend/src/hooks/useRenewalFlow.ts`:
+- [x] Create `agent/frontend/src/hooks/useRenewalFlow.ts`:
   - Manage form → payment → confirmation state machine
   - API calls for ticket creation and payment confirmation
-- [ ] Register CopilotKit action in `App.tsx`:
+- [x] Register CopilotKit action in `CopilotKitPage.tsx`:
   ```typescript
   useCopilotAction({
     name: "start_driver_license_renewal",
@@ -353,16 +353,17 @@
   ```
 
 ### 8.6 Form Submission Flow
-- [ ] Form submit → `POST /api/v1/tickets` with JWT
-- [ ] On success: show PaymentQR with returned invoice
-- [ ] User clicks "Confirm Payment" → `POST /api/v1/tickets/{id}/confirm-payment`
-- [ ] On paid: show success message
-- [ ] On pending: show "Payment not detected yet, try again"
+- [x] Form submit → `POST /api/v1/tickets` with JWT
+- [x] On success: show PaymentQR with returned invoice
+- [x] User clicks "Confirm Payment" → `POST /api/v1/tickets/{id}/confirm-payment`
+- [x] On paid: show success message
+- [x] On pending: show "Payment not detected yet, try again"
 
 ### 8.7 Auth UI (minimal)
-- [ ] Create login form component (email/password)
-- [ ] Store JWT in localStorage/context
-- [ ] Add auth header to API calls
+- [x] Create login form component (email/password)
+- [x] Create `AuthContext.tsx` with auth state management
+- [x] Store JWT in localStorage/context
+- [x] Add auth header to API calls
 
 ---
 

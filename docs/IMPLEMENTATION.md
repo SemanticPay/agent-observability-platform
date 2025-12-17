@@ -256,9 +256,62 @@ orchestrator_agent
 
 ---
 
-## Phase 8: Frontend Tools ⏳
+## Phase 8: Frontend Tools (CopilotKit)
+**Status**: ✅ Complete
 
-**Status**: Not started
+### Summary
+Implemented React components and CopilotKit action for the driver's license renewal flow with Lightning Network payment UI.
+
+### Files Created
+| File | Description |
+|------|-------------|
+| `agent/frontend/src/context/AuthContext.tsx` | Auth context with login, register, refresh, logout |
+| `agent/frontend/src/hooks/useRenewalFlow.ts` | State machine hook for form→payment→confirmation flow |
+| `agent/frontend/src/components/LoginForm.tsx` | Login/register form with form validation |
+| `agent/frontend/src/components/RenewalForm.tsx` | CNH renewal form (CPF, CNH number, mirror) |
+| `agent/frontend/src/components/PaymentQR.tsx` | Lightning QR code display with copy button |
+| `agent/frontend/src/components/PaymentStatus.tsx` | Payment confirmation/success display |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `agent/frontend/package.json` | Added `qrcode.react` dependency |
+| `agent/frontend/src/components/CopilotKitPage.tsx` | Added `start_driver_license_renewal` action, integrated auth and flow |
+
+### CopilotKit Action Added
+```typescript
+useCopilotAction({
+  name: "start_driver_license_renewal",
+  description: "Starts the CNH renewal process with Lightning payment",
+  handler: async ({ renewal_type }) => {
+    renewalFlow.startFlow();
+    // Shows login form if not authenticated
+    // Shows renewal form if authenticated
+    // Handles payment flow automatically
+  }
+});
+```
+
+### Flow State Machine
+```
+idle → form → payment → confirmation
+         ↑_________|  (on error)
+```
+
+### Key Features
+- Integrated AuthProvider for authentication state
+- Automatic login prompt if not authenticated
+- CPF masked input (XXX.XXX.XXX-XX format)
+- QR code display for BOLT11 invoice with copy functionality
+- Real-time expiry countdown for invoices
+- Payment confirmation polling
+- Success/failure UI states
+
+### Dependencies Added
+- `qrcode.react@^4.2.0` - QR code generation
+
+### Note
+Run `npm install` in `agent/frontend/` to install new dependency.
 
 ---
 
@@ -273,13 +326,14 @@ orchestrator_agent
 
 | Metric | Value |
 |--------|-------|
-| Phases Completed | 7/9 |
-| Files Created | 24 |
-| Files Modified | 15 |
-| New Dependencies | 4 |
+| Phases Completed | 8/9 |
+| Files Created | 30 |
+| Files Modified | 17 |
+| New Dependencies | 5 |
 | API Endpoints Added | 9 |
 | MCP Tools Exposed | 4 |
 | Agents Added | 1 |
+| Frontend Components Added | 6 |
 
 ---
 
