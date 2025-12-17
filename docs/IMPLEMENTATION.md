@@ -172,9 +172,40 @@ Implemented the core business logic API for DETRAN operations and ticket managem
 
 ---
 
-## Phase 6: MCP Server Integration ⏳
+## Phase 6: MCP Server Integration
+**Status**: ✅ Complete
 
-**Status**: Not started
+### Summary
+Integrated MCP (Model Context Protocol) server using `fastapi-mcp` to expose API endpoints as tools for AI agent access.
+
+### Files Created
+- `agent/backend/mcp/__init__.py` - Module exports
+- `agent/backend/mcp/server.py` - MCP server setup with `setup_mcp()` function
+
+### Files Modified
+- `requirements.txt` - Added `fastapi-mcp==0.3.3`
+- `agent/backend/main.py` - Integrated `setup_mcp(app)` after routes
+
+### MCP Tools Exposed
+| Tool Name | Endpoint | Description |
+|-----------|----------|-------------|
+| `list_operations` | GET /api/v1/operations | List available DETRAN operations |
+| `get_operation` | GET /api/v1/operations/{id} | Get operation details |
+| `list_tickets` | GET /api/v1/tickets | List user's tickets |
+| `get_ticket` | GET /api/v1/tickets/{id} | Get ticket details |
+
+### Key Features
+- Zero-configuration tool generation from FastAPI routes
+- Only read endpoints exposed (no create/update operations for safety)
+- Auto-generated tool descriptions from OpenAPI schema
+- MCP server available at `/mcp` endpoint
+- Graceful fallback if `fastapi-mcp` not installed
+
+### Usage
+Agents can connect to the MCP server and use these tools to:
+- Query available DETRAN services and their prices
+- Check ticket status for users
+- List pending/paid tickets
 
 ---
 
@@ -201,11 +232,12 @@ Implemented the core business logic API for DETRAN operations and ticket managem
 
 | Metric | Value |
 |--------|-------|
-| Phases Completed | 5/9 |
-| Files Created | 19 |
-| Files Modified | 10 |
-| New Dependencies | 3 |
+| Phases Completed | 6/9 |
+| Files Created | 21 |
+| Files Modified | 12 |
+| New Dependencies | 4 |
 | API Endpoints Added | 9 |
+| MCP Tools Exposed | 4 |
 
 ---
 

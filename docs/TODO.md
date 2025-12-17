@@ -225,11 +225,11 @@
 ## Phase 6: MCP Server Integration
 
 ### 6.1 Install fastapi-mcp
-- [ ] Add `fastapi-mcp` to `requirements.txt`
+- [x] Add `fastapi-mcp` to `requirements.txt`
 
 ### 6.2 MCP Server Setup
-- [ ] Create `agent/backend/mcp/__init__.py`
-- [ ] Create `agent/backend/mcp/server.py`:
+- [x] Create `agent/backend/mcp/__init__.py`
+- [x] Create `agent/backend/mcp/server.py`:
   ```python
   from fastapi_mcp import FastApiMCP
   
@@ -246,11 +246,11 @@
   ```
 
 ### 6.3 MCP Integration in main.py
-- [ ] Import and call `setup_mcp(app)` after all routes are mounted
-- [ ] MCP server will be available at `/mcp` endpoint
+- [x] Import and call `setup_mcp(app)` after all routes are mounted
+- [x] MCP server will be available at `/mcp` endpoint
 
 ### 6.4 Tag Routes for MCP
-- [ ] Add `operation_id` to route decorators for MCP tool naming:
+- [x] Add `operation_id` to route decorators for MCP tool naming:
   - `GET /api/v1/operations` → `list_operations`
   - `GET /api/v1/operations/{id}` → `get_operation`
   - `GET /api/v1/tickets` → `list_tickets`
