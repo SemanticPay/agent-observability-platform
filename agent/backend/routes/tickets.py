@@ -126,7 +126,8 @@ async def create_new_ticket(
     return CreateTicketResponse(
         ticket_id=ticket.id,
         ln_invoice=invoice.bolt11,
-        amount_sats=operation.price
+        amount_sats=operation.price,
+        expires_at=invoice.expires_at
     )
 
 
@@ -236,9 +237,17 @@ async def confirm_ticket_payment(
     if ticket.payment_status == "paid":
         return ConfirmPaymentResponse(status="paid")
     
+    # Ensure we have an invoice ID to check
+    if not ticket.ln_invoice_id:
+        return ConfirmPaymentResponse(status="pending")
+    
     # Check payment with Lightning Network
     spark_client = get_spark_client()
     payment_status = await spark_client.check_payment(ticket.ln_invoice_id)
+    
+    # Check if invoice expired
+    if payment_status.expired:
+        return ConfirmPaymentResponse(status="expired")
     
     if payment_status.paid:
         # Update ticket status in database

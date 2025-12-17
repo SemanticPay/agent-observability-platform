@@ -103,7 +103,7 @@ function CopilotKitPageInner() {
   });
 
   // Renewal flow state
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, login, register } = useAuth();
   const renewalFlow = useRenewalFlow();
 
   // CopilotKit action for starting CNH renewal with Lightning payment
@@ -135,8 +135,15 @@ function CopilotKitPageInner() {
           return (
             <div className="my-4">
               <LoginForm
-                onSuccess={() => renewalFlow.startRenewal()}
-                onRegisterClick={() => {}}
+                onLogin={async (email, password) => {
+                  await login(email, password);
+                  renewalFlow.startRenewal();
+                }}
+                onRegister={async (email, password) => {
+                  await register(email, password);
+                  renewalFlow.startRenewal();
+                }}
+                onCancel={() => renewalFlow.cancelRenewal()}
               />
             </div>
           );
@@ -149,6 +156,7 @@ function CopilotKitPageInner() {
                 onSubmit={(data: RenewalFormData) => {
                   renewalFlow.submitFormForConfirmation(data);
                 }}
+                onCancel={() => renewalFlow.cancelRenewal()}
                 isLoading={false}
               />
             </div>
@@ -188,9 +196,12 @@ function CopilotKitPageInner() {
             <div className="my-4">
               <PaymentQR
                 invoice={renewalFlow.ticket.ln_invoice}
-                amount={renewalFlow.ticket.amount_sats}
-                expiresAt={renewalFlow.ticket.expires_at}
-                onPaymentConfirmed={() => renewalFlow.confirmPayment()}
+                amountSats={renewalFlow.ticket.amount_sats}
+                onConfirmPayment={() => renewalFlow.confirmPayment()}
+                onCancel={() => renewalFlow.cancelRenewal()}
+                isConfirming={false}
+                error={renewalFlow.error}
+                confirmAttempts={renewalFlow.confirmAttempts}
               />
             </div>
           );
@@ -200,9 +211,8 @@ function CopilotKitPageInner() {
           return (
             <div className="my-4">
               <PaymentStatus
-                status="confirmed"
-                ticketId={renewalFlow.ticket?.ticket_id}
-                message="Your CNH renewal request has been submitted successfully!"
+                status="paid"
+                ticketId={renewalFlow.ticket?.ticket_id || ''}
                 onClose={() => renewalFlow.cancelRenewal()}
               />
             </div>

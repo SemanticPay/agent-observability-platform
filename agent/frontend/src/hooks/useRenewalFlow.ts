@@ -181,6 +181,13 @@ export function useRenewalFlow() {
           step: 'success',
           error: null,
         }));
+      } else if (result.status === 'expired') {
+        // Invoice has expired
+        setState(prev => ({
+          ...prev,
+          step: 'error',
+          error: 'Invoice has expired. Please start a new renewal.',
+        }));
       } else {
         // Payment still pending
         setState(prev => ({

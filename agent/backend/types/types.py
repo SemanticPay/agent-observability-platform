@@ -240,6 +240,7 @@ class CreateTicketResponse(BaseModel):
     ticket_id: str  # UUID as string for JSON
     ln_invoice: str  # BOLT11 invoice
     amount_sats: int
+    expires_at: datetime  # Invoice expiration timestamp
 
     class Config:
         from_attributes = True
@@ -288,4 +289,4 @@ class TicketListResponse(BaseModel):
 
 class ConfirmPaymentResponse(BaseModel):
     """Response model for payment confirmation."""
-    status: str  # 'pending' or 'paid'
+    status: str  # 'pending' | 'paid' | 'expired'

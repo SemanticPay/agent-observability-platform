@@ -436,14 +436,27 @@ Or if invoice expired:
 
 ### 4.4 Error Response Format
 
-All errors follow this format:
+All errors follow FastAPI's standard format with a `detail` field:
 
 ```json
+// Simple string detail (401 unauthorized, 403 forbidden)
+{
+  "detail": "unauthorized"
+}
+
+// Structured detail with error code
 {
   "detail": {
     "error": "error_code",
-    "message": "Human-readable message",
-    "missing": ["field1", "field2"]  // only for missing_required_fields
+    "ticket_id": "uuid"  // context-specific fields
+  }
+}
+
+// Missing required fields
+{
+  "detail": {
+    "error": "missing_required_fields",
+    "missing": ["field1", "field2"]
   }
 }
 ```
