@@ -4,7 +4,10 @@ import { useAuth } from '../context/AuthContext';
 // API base URL
 const API_BASE = 'http://localhost:8000';
 
-export type RenewalFlowStep = 'idle' | 'form' | 'payment' | 'confirming' | 'success' | 'error';
+// Default operation price in satoshis (will be fetched from API)
+const DEFAULT_OPERATION_PRICE = 50000;
+
+export type RenewalFlowStep = 'idle' | 'form' | 'confirm' | 'payment' | 'confirming' | 'success' | 'error';
 
 export interface RenewalFormData {
   cpf: string;
@@ -16,12 +19,14 @@ export interface TicketData {
   ticket_id: string;
   ln_invoice: string;
   amount_sats: number;
+  expires_at?: string;
 }
 
 export interface RenewalFlowState {
   step: RenewalFlowStep;
   formData: RenewalFormData | null;
   ticket: TicketData | null;
+  operationPrice: number;
   error: string | null;
   confirmAttempts: number;
 }
@@ -33,11 +38,12 @@ export function useRenewalFlow() {
     step: 'idle',
     formData: null,
     ticket: null,
+    operationPrice: DEFAULT_OPERATION_PRICE,
     error: null,
     confirmAttempts: 0,
   });
 
-  const startRenewal = useCallback(() => {
+  const startRenewal = useCallback(async () => {
     if (!isAuthenticated) {
       setState(prev => ({
         ...prev,
@@ -47,17 +53,65 @@ export function useRenewalFlow() {
       return;
     }
     
-    setState({
-      step: 'form',
-      formData: null,
-      ticket: null,
-      error: null,
-      confirmAttempts: 0,
-    });
+    // Fetch operation price
+    try {
+      const response = await fetch(`${API_BASE}/api/v1/operations/1`);
+      if (response.ok) {
+        const operation = await response.json();
+        setState({
+          step: 'form',
+          formData: null,
+          ticket: null,
+          operationPrice: operation.price || DEFAULT_OPERATION_PRICE,
+          error: null,
+          confirmAttempts: 0,
+        });
+      } else {
+        setState({
+          step: 'form',
+          formData: null,
+          ticket: null,
+          operationPrice: DEFAULT_OPERATION_PRICE,
+          error: null,
+          confirmAttempts: 0,
+        });
+      }
+    } catch {
+      setState({
+        step: 'form',
+        formData: null,
+        ticket: null,
+        operationPrice: DEFAULT_OPERATION_PRICE,
+        error: null,
+        confirmAttempts: 0,
+      });
+    }
   }, [isAuthenticated]);
 
-  const submitForm = useCallback(async (formData: RenewalFormData) => {
-    setState(prev => ({ ...prev, step: 'confirming', formData }));
+  // Move to confirmation step after form submission
+  const submitFormForConfirmation = useCallback((formData: RenewalFormData) => {
+    setState(prev => ({
+      ...prev,
+      step: 'confirm',
+      formData,
+      error: null,
+    }));
+  }, []);
+
+  // Go back to form from confirmation
+  const editForm = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      step: 'form',
+      error: null,
+    }));
+  }, []);
+
+  // Confirm and create ticket
+  const confirmAndCreateTicket = useCallback(async () => {
+    if (!state.formData) return;
+    
+    setState(prev => ({ ...prev, step: 'confirming' }));
     
     try {
       // Create ticket with form data
@@ -69,7 +123,7 @@ export function useRenewalFlow() {
         },
         body: JSON.stringify({
           operation_id: 1, // driver_license_renewal
-          form_data: formData,
+          form_data: state.formData,
         }),
       });
 
@@ -93,7 +147,7 @@ export function useRenewalFlow() {
         error: err instanceof Error ? err.message : 'Failed to create ticket',
       }));
     }
-  }, [getAuthHeader]);
+  }, [state.formData, getAuthHeader]);
 
   const confirmPayment = useCallback(async () => {
     if (!state.ticket) {
@@ -150,6 +204,7 @@ export function useRenewalFlow() {
       step: 'idle',
       formData: null,
       ticket: null,
+      operationPrice: DEFAULT_OPERATION_PRICE,
       error: null,
       confirmAttempts: 0,
     });
@@ -162,7 +217,9 @@ export function useRenewalFlow() {
   return {
     ...state,
     startRenewal,
-    submitForm,
+    submitFormForConfirmation,
+    editForm,
+    confirmAndCreateTicket,
     confirmPayment,
     cancelRenewal,
     resetError,

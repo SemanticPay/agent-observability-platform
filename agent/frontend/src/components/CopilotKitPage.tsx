@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from "../context/AuthContext";
 import { useRenewalFlow, RenewalFormData } from "../hooks/useRenewalFlow";
 import { LoginForm } from "./LoginForm";
 import { RenewalForm } from "./RenewalForm";
+import { RenewalConfirmation } from "./RenewalConfirmation";
 import { PaymentQR } from "./PaymentQR";
 import { PaymentStatus } from "./PaymentStatus";
 
@@ -119,7 +120,7 @@ function CopilotKitPageInner() {
     ],
     handler: async ({ renewal_type }) => {
       // Start the renewal flow
-      renewalFlow.startFlow();
+      renewalFlow.startRenewal();
       
       if (!isAuthenticated) {
         return "Please log in or create an account to start the renewal process. The login form is now displayed.";
@@ -128,77 +129,96 @@ function CopilotKitPageInner() {
       return `Starting ${renewal_type || 'standard'} CNH renewal process. Please fill out the renewal form.`;
     },
     render: ({ status }) => {
-      if (status === "executing" || renewalFlow.currentStep !== "idle") {
+      if (status === "executing" || renewalFlow.step !== "idle") {
         // Render the appropriate component based on flow state
-        if (!isAuthenticated && renewalFlow.currentStep !== "idle") {
+        if (!isAuthenticated && renewalFlow.step !== "idle") {
           return (
             <div className="my-4">
               <LoginForm
-                onSuccess={() => renewalFlow.setStep("form")}
+                onSuccess={() => renewalFlow.startRenewal()}
                 onRegisterClick={() => {}}
               />
             </div>
           );
         }
         
-        if (renewalFlow.currentStep === "form") {
+        if (renewalFlow.step === "form") {
           return (
             <div className="my-4">
               <RenewalForm
-                onSubmit={async (data: RenewalFormData) => {
-                  renewalFlow.setFormData(data);
-                  // Create operation and get payment invoice
-                  try {
-                    const response = await fetch("http://localhost:8000/api/v1/operations/", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        operation_type: "cnh_renewal",
-                        user_id: user?.id || 1,
-                        details: data,
-                      }),
-                    });
-                    const operation = await response.json();
-                    renewalFlow.setOperationId(operation.id);
-                    
-                    // Get invoice
-                    const invoiceRes = await fetch(`http://localhost:8000/api/v1/operations/${operation.id}/invoice`);
-                    const invoiceData = await invoiceRes.json();
-                    renewalFlow.setInvoice(invoiceData);
-                    renewalFlow.setStep("payment");
-                  } catch (error) {
-                    console.error("Error creating operation:", error);
-                  }
+                onSubmit={(data: RenewalFormData) => {
+                  renewalFlow.submitFormForConfirmation(data);
                 }}
-                isLoading={renewalFlow.isLoading}
+                isLoading={false}
               />
             </div>
           );
         }
         
-        if (renewalFlow.currentStep === "payment" && renewalFlow.invoice) {
+        if (renewalFlow.step === "confirm" && renewalFlow.formData) {
+          return (
+            <div className="my-4">
+              <RenewalConfirmation
+                formData={renewalFlow.formData}
+                operationPrice={renewalFlow.operationPrice}
+                onConfirm={() => renewalFlow.confirmAndCreateTicket()}
+                onEdit={() => renewalFlow.editForm()}
+                isLoading={renewalFlow.step === "confirming"}
+              />
+            </div>
+          );
+        }
+        
+        if (renewalFlow.step === "confirming") {
+          return (
+            <div className="my-4">
+              <RenewalConfirmation
+                formData={renewalFlow.formData!}
+                operationPrice={renewalFlow.operationPrice}
+                onConfirm={() => {}}
+                onEdit={() => {}}
+                isLoading={true}
+              />
+            </div>
+          );
+        }
+        
+        if (renewalFlow.step === "payment" && renewalFlow.ticket) {
           return (
             <div className="my-4">
               <PaymentQR
-                invoice={renewalFlow.invoice.bolt11}
-                amount={renewalFlow.invoice.amount_sats}
-                expiresAt={renewalFlow.invoice.expires_at}
-                onPaymentConfirmed={() => renewalFlow.setStep("confirmation")}
+                invoice={renewalFlow.ticket.ln_invoice}
+                amount={renewalFlow.ticket.amount_sats}
+                expiresAt={renewalFlow.ticket.expires_at}
+                onPaymentConfirmed={() => renewalFlow.confirmPayment()}
               />
             </div>
           );
         }
         
-        if (renewalFlow.currentStep === "confirmation") {
+        if (renewalFlow.step === "success") {
           return (
             <div className="my-4">
               <PaymentStatus
                 status="confirmed"
-                operationId={renewalFlow.operationId || undefined}
-                ticketId={renewalFlow.ticketId || undefined}
+                ticketId={renewalFlow.ticket?.ticket_id}
                 message="Your CNH renewal request has been submitted successfully!"
-                onClose={() => renewalFlow.reset()}
+                onClose={() => renewalFlow.cancelRenewal()}
               />
+            </div>
+          );
+        }
+        
+        if (renewalFlow.step === "error") {
+          return (
+            <div className="my-4 bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-red-700">{renewalFlow.error || "An error occurred"}</p>
+              <button 
+                onClick={() => renewalFlow.cancelRenewal()}
+                className="mt-2 text-red-600 underline text-sm"
+              >
+                Try again
+              </button>
             </div>
           );
         }

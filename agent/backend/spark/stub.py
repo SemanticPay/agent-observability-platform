@@ -3,7 +3,7 @@
 import uuid
 import hashlib
 import base64
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict
 
 from config import SPARK_MODE
@@ -39,17 +39,19 @@ class StubSparkClient(SparkClient):
         amount_str = str(amount_sats)
         return f"lnbc{amount_str}n1p{encoded[:50]}"
     
-    async def create_invoice(self, amount_sats: int, memo: str = "") -> Invoice:
+    async def create_invoice(self, amount_sats: int, memo: str = "", expiry_minutes: int = 15) -> Invoice:
         """Create a fake Lightning invoice."""
         invoice_id = str(uuid.uuid4())
         bolt11 = self._generate_fake_bolt11(amount_sats, memo)
+        now = datetime.utcnow()
         
         invoice = Invoice(
             invoice_id=invoice_id,
             bolt11=bolt11,
             amount_sats=amount_sats,
             memo=memo,
-            created_at=datetime.utcnow()
+            created_at=now,
+            expires_at=now + timedelta(minutes=expiry_minutes)
         )
         
         self._invoices[invoice_id] = invoice
@@ -62,13 +64,26 @@ class StubSparkClient(SparkClient):
         Check payment status.
         
         Simulates payment: Returns paid=True after 3rd check attempt.
+        Returns expired=True if invoice has expired.
         """
+        invoice = self._invoices.get(invoice_id)
+        
+        # Check if expired
+        if invoice and invoice.is_expired and invoice_id not in self._paid:
+            return PaymentStatus(
+                invoice_id=invoice_id,
+                paid=False,
+                paid_at=None,
+                expired=True
+            )
+        
         # If already paid, return paid status
         if invoice_id in self._paid:
             return PaymentStatus(
                 invoice_id=invoice_id,
                 paid=True,
-                paid_at=self._paid[invoice_id]
+                paid_at=self._paid[invoice_id],
+                expired=False
             )
         
         # Increment check count
@@ -81,14 +96,16 @@ class StubSparkClient(SparkClient):
             return PaymentStatus(
                 invoice_id=invoice_id,
                 paid=True,
-                paid_at=paid_at
+                paid_at=paid_at,
+                expired=False
             )
         
         # Still pending
         return PaymentStatus(
             invoice_id=invoice_id,
             paid=False,
-            paid_at=None
+            paid_at=None,
+            expired=False
         )
     
     def get_invoice(self, invoice_id: str) -> Invoice | None:
@@ -103,8 +120,9 @@ class StubSparkClient(SparkClient):
         return False
 
 
-# Singleton instance
+# Singleton instances
 _stub_client: StubSparkClient | None = None
+_wdk_client: SparkClient | None = None
 
 
 def get_spark_client() -> SparkClient:
@@ -113,16 +131,15 @@ def get_spark_client() -> SparkClient:
     
     Based on SPARK_MODE config:
     - "stub": Returns StubSparkClient (default for development)
-    - "production": Would return real WDK Spark client (not implemented)
+    - "production": Returns WdkSparkClient for real Lightning payments
     """
-    global _stub_client
+    global _stub_client, _wdk_client
     
     if SPARK_MODE == "production":
-        # TODO: Implement real WDK Spark client when credentials available
-        raise NotImplementedError(
-            "Production Spark client not yet implemented. "
-            "Set SPARK_MODE=stub for development."
-        )
+        if _wdk_client is None:
+            from agent.backend.spark.wdk import WdkSparkClient
+            _wdk_client = WdkSparkClient()
+        return _wdk_client
     
     # Default to stub
     if _stub_client is None:
