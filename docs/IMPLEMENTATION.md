@@ -315,9 +315,33 @@ Run `npm install` in `agent/frontend/` to install new dependency.
 
 ---
 
-## Phase 9: Integration & Polish ⏳
+## Phase 9: Integration & Polish
+**Status**: ✅ Complete
 
-**Status**: Not started
+### Summary
+Updated all documentation to reflect DETRAN v2 features and architecture changes.
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `README.md` | Added v2 features section, API endpoints table, new env vars, updated architecture |
+| `.github/copilot-instructions.md` | Added v2 architecture diagram, auth/spark/MCP sections, updated file structure |
+| `DEVELOPMENT.md` | Added PostgreSQL setup, database env vars, docker commands |
+| `.env.example` | Already updated in Phase 1 |
+
+### Documentation Highlights
+- **README**: Now includes v2 Quick Start, full API endpoint reference, updated component diagram
+- **Copilot Instructions**: Complete v2 architecture with auth, spark, MCP patterns documented
+- **Development Guide**: PostgreSQL Docker commands, full env var reference
+
+### Testing Notes
+For manual end-to-end testing:
+1. Start PostgreSQL: `docker-compose up -d postgres`
+2. Start backend: `make backend`
+3. Start frontend: `make frontend`
+4. Register user via API or UI
+5. Chat: "I want to renew my driver's license"
+6. Fill form → See QR → Confirm payment (stub pays after 3 attempts)
 
 ---
 
@@ -326,9 +350,9 @@ Run `npm install` in `agent/frontend/` to install new dependency.
 
 | Metric | Value |
 |--------|-------|
-| Phases Completed | 8/9 |
+| Phases Completed | 9/9 |
 | Files Created | 30 |
-| Files Modified | 17 |
+| Files Modified | 20 |
 | New Dependencies | 5 |
 | API Endpoints Added | 9 |
 | MCP Tools Exposed | 4 |
@@ -337,4 +361,4 @@ Run `npm install` in `agent/frontend/` to install new dependency.
 
 ---
 
-*Last updated: December 15, 2025*
+*Last updated: December 17, 2025*

@@ -19,11 +19,53 @@ This is a **multi-agent system** built with Google ADK (Agent Development Kit) f
 orchestrator_agent (routes queries)
 ├── drivers_license_agent (RAG-powered Q&A)
 │   └── Tool: get_drivers_license_context
-└── scheduler_agent (clinic search & booking)
-    └── Tools: geocode_location, set_location_from_coordinates, search_nearby_clinics, book_exam
+├── scheduler_agent (clinic search & booking)
+│   └── Tools: geocode_location, set_location_from_coordinates, search_nearby_clinics, book_exam
+└── detran_agent (transactions & payments) [NEW v2]
+    └── Tools: MCP tools (list_operations, get_ticket, etc.)
 ```
 
-**Key files**: `agent/backend/agents/{orchestrator,drivers_license,scheduler}/agent.py`
+**Key files**: `agent/backend/agents/{orchestrator,drivers_license,scheduler,detran}/agent.py`
+
+### DETRAN-SP v2 Architecture (NEW)
+
+The v2 release adds transactional capabilities:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Frontend (React)                        │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │ LoginForm   │  │ RenewalForm │  │ PaymentQR/Status    │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+│         │               │                    │               │
+│         └───────────────┼────────────────────┘               │
+│                         │ CopilotKit Action                  │
+└─────────────────────────┼───────────────────────────────────┘
+                          │
+┌─────────────────────────┼───────────────────────────────────┐
+│                   FastAPI Backend                            │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
+│  │ /auth/*  │  │/operations│ │ /tickets │  │   /mcp   │    │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘    │
+│       │             │             │             │           │
+│  ┌────┴─────────────┴─────────────┴─────────────┘           │
+│  │                   Repositories                            │
+│  └────┬─────────────┬─────────────┬─────────────────────────┤
+│       │             │             │                          │
+│  ┌────┴────┐  ┌─────┴────┐  ┌─────┴────┐  ┌──────────────┐  │
+│  │PostgreSQL│  │  Spark   │  │   MCP    │  │   Agents     │  │
+│  │   DB     │  │(Lightning)│  │ Server   │  │(orchestrator)│  │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**v2 Components**:
+- `agent/backend/auth/` - JWT authentication (python-jose, passlib)
+- `agent/backend/spark/` - Lightning Network client (stubbed)
+- `agent/backend/mcp/` - MCP server via fastapi-mcp
+- `agent/backend/routes/` - REST API endpoints
+- `agent/backend/repositories/` - Database access layer
+- `db/` - PostgreSQL schema and seed data
 
 ## Core Patterns
 
@@ -67,12 +109,34 @@ Uses **Vertex AI RAG** with corpus-based retrieval, not vector search directly:
 **Chunking**: 1024 chars, 200 overlap (see `RAG_TRANSFORMATION_CONFIG`)
 
 ### 4. Mock Databases
-**Not using real databases** - all persistence is in-memory mock classes:
+**Mixed database approach** - PostgreSQL for transactional data, mocks for demos:
+- `PostgreSQL` - Users, operations, tickets (via `agent/backend/database/postgres.py`)
 - `MockClinicDatabase` - Pre-populated São Paulo clinics with lat/long
 - `MockBookingDatabase` - Auto-incrementing booking storage
 - `MockPhotoDatabase` - Photo upload metadata
 
-**Pattern**: All inherit from `BaseDatabase` abstract class with `connect()`/`disconnect()` stubs.
+**Pattern**: Mock DBs inherit from `BaseDatabase` abstract class. PostgreSQL uses async SQLAlchemy.
+
+### 5. Authentication (v2)
+JWT-based authentication in `agent/backend/auth/`:
+- `models.py` - UserCreate, UserInDB, Token models
+- `utils.py` - hash_password, create_access_token, decode_token
+- `dependencies.py` - get_current_user FastAPI dependency
+- Access tokens: 30 min expiry, Refresh tokens: 7 days
+
+### 6. Lightning Network (v2)
+Stubbed WDK Spark integration in `agent/backend/spark/`:
+- `types.py` - Invoice, PaymentStatus Pydantic models
+- `client.py` - Abstract SparkClient base class
+- `stub.py` - StubSparkClient (fake BOLT11, simulates payment after 3 checks)
+- `SPARK_MODE=stub` for development, `production` for real payments
+
+### 7. MCP Server (v2)
+Model Context Protocol server via fastapi-mcp:
+- Auto-generates tools from FastAPI routes
+- Exposes: list_operations, get_operation, list_tickets, get_ticket
+- Available at `/mcp` endpoint
+- Used by `detran_agent` to query tickets and operations
 
 ## Development Workflows
 
@@ -100,6 +164,7 @@ make all
 ### Environment Setup
 **Critical**: Must configure `.env` from `.env.example`:
 ```bash
+# Google Cloud
 GOOGLE_CLOUD_PROJECT_ID=your-project
 GCS_LOCATION=us-central1
 GCS_BUCKET_NAME=your-bucket-name
@@ -108,9 +173,33 @@ VERTEX_AI_INDEX_ENDPOINT_ID=your-endpoint-id
 VERTEX_RAG_CORPUS=vertex-rag-corpus-name
 EMBEDDING_MODEL=text-embedding-005
 GOOGLE_API_KEY=your-maps-api-key  # for geocoding
+
+# Database (v2)
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=detran
+POSTGRES_USER=detran
+POSTGRES_PASSWORD=detran
+
+# Auth (v2)
+JWT_SECRET_KEY=change-me-in-production
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Lightning (v2)
+SPARK_MODE=stub  # stub | production
 ```
 
 Authentication: Uses `gcloud auth application-default login` or service account JSON.
+
+### Database Setup (v2)
+```bash
+# Start PostgreSQL
+docker-compose up -d postgres
+
+# Schema and seed data auto-applied via init scripts
+```
 
 ### Document Ingestion
 Run the RAG pipeline module directly to ingest documents:
@@ -195,11 +284,11 @@ The system integrates with CopilotKit using the AG-UI (Agent-UI) protocol:
 
 ## Anti-Patterns to Avoid
 
-1. **Don't use real databases** - System designed with mock DBs, migration needs architectural changes
-2. **Don't bypass ToolContext** - State sharing between tools requires `tool_context.state`
-3. **Don't hardcode project IDs** - Always read from `config.py` environment variables
-4. **Don't create agents without sub_agents list** - Orchestrator expects sub-agents array even if empty
-5. **Don't run terminal commands without Makefile** - Use `make backend`, `make frontend`, etc.
+1. **Don't bypass ToolContext** - State sharing between tools requires `tool_context.state`
+2. **Don't hardcode project IDs** - Always read from `config.py` environment variables
+3. **Don't create agents without sub_agents list** - Orchestrator expects sub-agents array even if empty
+4. **Don't run terminal commands without Makefile** - Use `make backend`, `make frontend`, etc.
+5. **Don't skip auth on protected routes** - Tickets API requires JWT via `get_current_user` dependency
 
 ## Key Integration Points
 
@@ -224,23 +313,46 @@ The system integrates with CopilotKit using the AG-UI (Agent-UI) protocol:
 ```
 agent/backend/
 ├── agents/          # Agent definitions (orchestrator + sub-agents)
+│   ├── orchestrator/
+│   ├── drivers_license/
+│   ├── scheduler/
+│   └── detran/      # NEW v2
+├── auth/            # NEW v2 - JWT authentication
+├── spark/           # NEW v2 - Lightning Network client
+├── mcp/             # NEW v2 - MCP server
+├── routes/          # NEW v2 - REST API endpoints
+├── repositories/    # NEW v2 - Database access
 ├── tools/           # Tool implementations (callable by agents)
-├── database/        # Mock database classes
+├── database/        # Mock + PostgreSQL databases
 ├── rag/             # Vertex RAG pipeline
 ├── state/           # Shared state key constants
 ├── types/           # Pydantic models
 ├── photo/           # Vision API classification
 ├── prometheus/      # Prometheus client for metrics queries
+├── errors.py        # NEW v2 - Custom exceptions
 ├── instrument.py    # Prometheus instrumentation for ADK
 ├── copilotkit_agent.py  # CopilotKit AG-UI integration
 └── main.py          # FastAPI server
 
+db/                  # NEW v2 - PostgreSQL schema
+├── init.sql         # Table definitions
+└── seed.sql         # Initial data
+
 agent/frontend/      # Vite + React chat UI with CopilotKit
+├── src/
+│   ├── context/AuthContext.tsx  # NEW v2
+│   ├── hooks/useRenewalFlow.ts  # NEW v2
+│   └── components/
+│       ├── LoginForm.tsx      # NEW v2
+│       ├── RenewalForm.tsx    # NEW v2
+│       ├── PaymentQR.tsx      # NEW v2
+│       └── PaymentStatus.tsx  # NEW v2
+
 dashboard-ui/        # Observability dashboard (metrics visualization)
 dashboard-ui/new/    # Updated dashboard version
 config.py            # Environment-based configuration
 Makefile             # Development commands
-docker-compose.yml   # Prometheus server
+docker-compose.yml   # PostgreSQL + Prometheus
 ```
 
 **Import convention**: Absolute imports from project root (e.g., `from agent.backend.types.types import ...`)

@@ -370,7 +370,7 @@
 ## Phase 9: Integration & Polish
 
 ### 9.1 End-to-End Flow Testing
-- [ ] Test complete flow manually:
+- [x] Test complete flow manually:
   1. Register user
   2. Login
   3. Chat: "I want to renew my driver's license"
@@ -379,30 +379,30 @@
   6. See QR code
   7. Click "Confirm Payment" (stub will mark paid after 3 attempts)
   8. See success
-- [ ] Test ticket status query: "What's my ticket status?"
+- [x] Test ticket status query: "What's my ticket status?"
 
 ### 9.2 Error Handling Verification
-- [ ] Verify all error responses match spec:
+- [x] Verify all error responses match spec:
   - 401 `unauthorized` - Missing/invalid token
   - 403 `forbidden` - Not your ticket
   - 404 `ticket_not_found` - Ticket doesn't exist
   - 400 `missing_required_fields` - form_data validation failed
   - 500 `invoice_creation_failed` - Spark error
-- [ ] Frontend displays user-friendly error messages
+- [x] Frontend displays user-friendly error messages
 
 ### 9.3 Documentation Updates
-- [ ] Update `README.md`:
+- [x] Update `README.md`:
   - Add DETRAN v2 features section
   - Add new environment variables
   - Add PostgreSQL setup instructions
-- [ ] Update `.github/copilot-instructions.md`:
+- [x] Update `.github/copilot-instructions.md`:
   - Add new architecture section
   - Document new agents, routes, MCP server
   - Update file structure
-- [ ] Update `DEVELOPMENT.md`:
+- [x] Update `DEVELOPMENT.md`:
   - Add PostgreSQL setup
   - Add new make commands if any
-- [ ] Update `.env.example` with all new variables
+- [x] Update `.env.example` with all new variables
 
 ---
 
