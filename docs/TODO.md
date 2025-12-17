@@ -168,26 +168,26 @@
 ## Phase 5: Operations & Tickets API
 
 ### 5.1 Operations Repository
-- [ ] Create `agent/backend/repositories/operations.py`:
+- [x] Create `agent/backend/repositories/operations.py`:
   - `get_all_operations(db) -> list[Operation]`
   - `get_operation_by_id(db, id) -> Operation | None`
   - `get_operation_by_name(db, name) -> Operation | None`
 
 ### 5.2 Operations Endpoints
-- [ ] Create `agent/backend/routes/operations.py`:
+- [x] Create `agent/backend/routes/operations.py`:
   - `GET /api/v1/operations` - List all operations
   - `GET /api/v1/operations/{id}` - Get operation by ID
-- [ ] Mount operations router in `main.py`
+- [x] Mount operations router in `main.py`
 
 ### 5.3 Tickets Repository
-- [ ] Create `agent/backend/repositories/tickets.py`:
+- [x] Create `agent/backend/repositories/tickets.py`:
   - `create_ticket(db, ticket: CreateTicket) -> Ticket`
   - `get_ticket_by_id(db, ticket_id) -> Ticket | None`
   - `get_tickets_by_user(db, user_id, status?, limit?, offset?) -> list[Ticket]`
   - `update_ticket_payment_status(db, ticket_id, status) -> Ticket`
 
 ### 5.4 Tickets Endpoints
-- [ ] Create `agent/backend/routes/tickets.py`:
+- [x] Create `agent/backend/routes/tickets.py`:
   - `POST /api/v1/tickets` - Create ticket + LN invoice (protected)
     - Validate form_data against operation.required_fields
     - Call Spark client to create invoice
@@ -201,10 +201,10 @@
     - Call Spark client to check payment
     - Update ticket status if paid
     - Return {status: "paid" | "pending"}
-- [ ] Mount tickets router in `main.py`
+- [x] Mount tickets router in `main.py`
 
 ### 5.5 Tickets Types
-- [ ] Add to `agent/backend/types/types.py`:
+- [x] Add to `agent/backend/types/types.py`:
   - `CreateTicketRequest` (operation_id, form_data)
   - `CreateTicketResponse` (ticket_id, ln_invoice, amount_sats)
   - `TicketResponse` (full ticket with operation_name)
@@ -212,13 +212,13 @@
   - `ConfirmPaymentResponse` (status)
 
 ### 5.6 Error Handling
-- [ ] Create `agent/backend/errors.py` with custom exceptions:
+- [x] Create `agent/backend/errors.py` with custom exceptions:
   - `UnauthorizedError` (401)
   - `ForbiddenError` (403) - "Not your ticket"
   - `TicketNotFoundError` (404)
   - `MissingRequiredFieldsError` (400) - includes `missing` list
   - `InvoiceCreationFailedError` (500)
-- [ ] Add exception handlers in `main.py`
+- [x] Add exception handlers in `main.py`
 
 ---
 

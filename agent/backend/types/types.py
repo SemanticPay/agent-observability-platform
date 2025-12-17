@@ -225,3 +225,67 @@ class TokenRefreshResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     expires_in: int
+
+
+# --- Ticket Request/Response Types ---
+
+class CreateTicketRequest(BaseModel):
+    """Request model for creating a ticket."""
+    operation_id: int
+    form_data: dict
+
+
+class CreateTicketResponse(BaseModel):
+    """Response model for ticket creation."""
+    ticket_id: str  # UUID as string for JSON
+    ln_invoice: str  # BOLT11 invoice
+    amount_sats: int
+
+    class Config:
+        from_attributes = True
+
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        return v
+
+    def __init__(self, **data):
+        # Convert UUID to string if needed
+        if 'ticket_id' in data and not isinstance(data['ticket_id'], str):
+            data['ticket_id'] = str(data['ticket_id'])
+        super().__init__(**data)
+
+
+class TicketResponse(BaseModel):
+    """Response model for ticket details."""
+    id: str  # UUID as string
+    operation_id: int
+    operation_name: str
+    form_data: dict
+    ln_invoice: Optional[str] = None
+    amount_sats: int
+    payment_status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+    def __init__(self, **data):
+        # Convert UUID to string if needed
+        if 'id' in data and not isinstance(data['id'], str):
+            data['id'] = str(data['id'])
+        super().__init__(**data)
+
+
+class TicketListResponse(BaseModel):
+    """Response model for listing tickets."""
+    tickets: list[TicketResponse]
+    total: int
+
+
+class ConfirmPaymentResponse(BaseModel):
+    """Response model for payment confirmation."""
+    status: str  # 'pending' or 'paid'

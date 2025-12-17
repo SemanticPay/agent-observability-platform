@@ -123,9 +123,52 @@ Created stubbed Lightning Network payment module for development.
 
 ---
 
-## Phase 5: Operations & Tickets API ⏳
+## Phase 5: Operations & Tickets API
+**Status**: ✅ Complete
 
-**Status**: Not started
+### Summary
+Implemented the core business logic API for DETRAN operations and ticket management with Lightning Network payment integration.
+
+### Files Created
+- `agent/backend/errors.py` - Custom exception classes (401, 403, 404, 400, 500)
+- `agent/backend/repositories/operations.py` - Operations CRUD with `Operation` model
+- `agent/backend/repositories/tickets.py` - Tickets CRUD with `Ticket`, `TicketWithOperation` models
+- `agent/backend/routes/operations.py` - Operations API endpoints
+- `agent/backend/routes/tickets.py` - Tickets API endpoints with payment flow
+
+### Files Modified
+- `agent/backend/types/types.py` - Added ticket request/response types
+- `agent/backend/repositories/__init__.py` - Exported new repositories
+- `agent/backend/routes/__init__.py` - Exported new routers
+- `agent/backend/main.py` - Mounted operations and tickets routers
+
+### API Endpoints Added
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/operations` | No | List all operations |
+| GET | `/api/v1/operations/{id}` | No | Get operation by ID |
+| POST | `/api/v1/tickets` | Yes | Create ticket + LN invoice |
+| GET | `/api/v1/tickets` | Yes | List user's tickets |
+| GET | `/api/v1/tickets/{id}` | Yes | Get ticket details |
+| POST | `/api/v1/tickets/{id}/confirm-payment` | Yes | Confirm LN payment |
+
+### Key Features
+- Form validation against operation's `required_fields` schema
+- Automatic Lightning invoice creation on ticket creation
+- Ownership verification (users can only access their own tickets)
+- Pagination support for ticket listing (status filter, limit, offset)
+- Payment confirmation with Spark client integration
+- Proper error responses matching API spec
+
+### Error Handling
+| Code | Error | When |
+|------|-------|------|
+| 400 | `missing_required_fields` | Form data validation failed |
+| 401 | `unauthorized` | Missing/invalid JWT token |
+| 403 | `forbidden` | Accessing another user's ticket |
+| 404 | `ticket_not_found` | Ticket doesn't exist |
+| 404 | `operation_not_found` | Operation doesn't exist |
+| 500 | `invoice_creation_failed` | Spark client error |
 
 ---
 
@@ -158,11 +201,11 @@ Created stubbed Lightning Network payment module for development.
 
 | Metric | Value |
 |--------|-------|
-| Phases Completed | 4/9 |
-| Files Created | 14 |
-| Files Modified | 6 |
+| Phases Completed | 5/9 |
+| Files Created | 19 |
+| Files Modified | 10 |
 | New Dependencies | 3 |
-| API Endpoints Added | 3 |
+| API Endpoints Added | 9 |
 
 ---
 
