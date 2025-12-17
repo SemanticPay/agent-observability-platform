@@ -494,7 +494,121 @@ Phase 7: Agent Updates (needs MCP)
 Phase 8: Frontend Tools (needs API + agent)
     ↓
 Phase 9: Integration & Polish
+    ↓
+Phase 10: Bug Fixes (review findings)
 ```
+
+---
+
+## Phase 10: Bug Fixes (Review Findings)
+
+> Issues discovered during comprehensive V2-DESIGN.md compliance review.
+
+### 10.1 Frontend Component Props Mismatches
+
+#### 10.1.1 PaymentQR Props (CopilotKitPage.tsx)
+- [ ] Fix PaymentQR props in CopilotKitPage.tsx:
+  - Current: `amount`, `expiresAt`, `onPaymentConfirmed`
+  - Expected: `amountSats`, `onConfirmPayment`, `onCancel`
+  - Update: Change `amount` → `amountSats`, `onPaymentConfirmed` → `onConfirmPayment`, add `onCancel`
+
+#### 10.1.2 PaymentStatus Props (CopilotKitPage.tsx)
+- [ ] Fix PaymentStatus props in CopilotKitPage.tsx:
+  - Current: `status="confirmed"`, has `message` prop
+  - Expected: `status="paid"` (enum: 'pending' | 'paid'), no `message` prop
+  - Update: Change `status="confirmed"` → `status="paid"`, remove `message` prop
+
+#### 10.1.3 LoginForm Props (CopilotKitPage.tsx)
+- [ ] Fix LoginForm props in CopilotKitPage.tsx:
+  - Current: `onSuccess`, `onRegisterClick`
+  - Expected: `onLogin`, `onRegister`, `onCancel`
+  - Update: Use AuthContext's `login` and `register` functions properly
+
+#### 10.1.4 RenewalForm Missing onCancel
+- [ ] Add missing `onCancel` prop to RenewalForm in CopilotKitPage.tsx:
+  - RenewalForm requires `onCancel` prop but it's not passed
+  - Add: `onCancel={() => renewalFlow.cancelRenewal()}`
+
+### 10.2 API Response Missing expires_at
+
+#### 10.2.1 CreateTicketResponse Missing expires_at
+- [ ] Add `expires_at` to CreateTicketResponse in types.py:
+  ```python
+  class CreateTicketResponse(BaseModel):
+      ticket_id: str
+      ln_invoice: str
+      amount_sats: int
+      expires_at: datetime  # ADD THIS
+  ```
+
+#### 10.2.2 Update tickets.py to Return expires_at
+- [ ] Update `create_new_ticket` endpoint to include `expires_at` from invoice:
+  ```python
+  return CreateTicketResponse(
+      ticket_id=ticket.id,
+      ln_invoice=invoice.bolt11,
+      amount_sats=operation.price,
+      expires_at=invoice.expires_at  # ADD THIS
+  )
+  ```
+
+### 10.3 Expired Invoice Handling
+
+#### 10.3.1 Update confirm-payment to Handle Expired Invoices
+- [ ] Update `confirm_ticket_payment` in routes/tickets.py to check and return 'expired' status:
+  ```python
+  if payment_status.expired:
+      return ConfirmPaymentResponse(status="expired")
+  ```
+
+#### 10.3.2 Update ConfirmPaymentResponse for Expired Status
+- [ ] Update ConfirmPaymentResponse type to include 'expired':
+  ```python
+  class ConfirmPaymentResponse(BaseModel):
+      status: str  # 'pending' | 'paid' | 'expired'
+  ```
+
+#### 10.3.3 Update Frontend to Handle Expired Status
+- [ ] Update useRenewalFlow.ts confirmPayment to handle 'expired' response:
+  ```typescript
+  if (result.status === 'expired') {
+      setState(prev => ({
+          ...prev,
+          step: 'error',
+          error: 'Invoice has expired. Please start a new renewal.',
+      }));
+  }
+  ```
+
+### 10.4 V2-DESIGN.md Accuracy Updates
+
+#### 10.4.1 Document Error Response Format Inconsistency
+- [ ] Update V2-DESIGN.md Section 4.4 to reflect actual error format:
+  - Current errors return `{"detail": ...}` not `{"detail": {"error": ..., "message": ...}}`
+  - Either update design doc OR update error classes to match
+
+#### 10.4.2 Document Frontend State Machine
+- [ ] Update V2-DESIGN.md Section 7.2 to include 'confirming' step:
+  - Current doc shows: idle → form → confirm → payment → success | error
+  - Actual: idle → form → confirm → confirming → payment → success | error
+
+### 10.5 Minor Fixes
+
+#### 10.5.1 PaymentQR Missing Props
+- [ ] Either update PaymentQR to accept `expiresAt` for countdown display, OR remove from CopilotKitPage call
+
+#### 10.5.2 PaymentStatus Type Extension
+- [ ] Consider adding 'expired' status to PaymentStatus component props:
+  ```typescript
+  status: 'pending' | 'paid' | 'expired';
+  ```
+
+#### 10.5.3 Install qrcode.react Types
+- [ ] Run `npm install` in agent/frontend to ensure qrcode.react and its types are installed:
+  ```bash
+  cd agent/frontend && npm install
+  ```
+  - If types still missing: `npm install --save-dev @types/qrcode.react` (if available) or use `//@ts-ignore`
 
 ---
 
