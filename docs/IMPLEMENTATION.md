@@ -209,9 +209,50 @@ Agents can connect to the MCP server and use these tools to:
 
 ---
 
-## Phase 7: Agent Updates ⏳
+## Phase 7: Agent Updates
+**Status**: ✅ Complete
 
-**Status**: Not started
+### Summary
+Created new `detran_agent` for transactional services (renewals, payments) and updated orchestrator routing.
+
+### Files Created
+- `agent/backend/agents/detran/__init__.py` - Module exports
+- `agent/backend/agents/detran/prompt.py` - Comprehensive prompt for CNH renewal and payment guidance
+- `agent/backend/agents/detran/agent.py` - Agent definition with observability tag
+
+### Files Modified
+- `agent/backend/agents/orchestrator/agent.py` - Added `detran_agent` to sub_agents list
+- `agent/backend/agents/orchestrator/prompt.py` - Updated routing rules for 3 agents
+- `agent/backend/state/keys.py` - Added DETRAN state keys
+
+### Agent Hierarchy (Updated)
+```
+orchestrator_agent
+├── drivers_license_agent (Q&A - informational)
+├── scheduler_agent (clinic booking)
+└── detran_agent (NEW - transactions & payments)
+```
+
+### Routing Rules
+| Intent | Routes To | Examples |
+|--------|-----------|----------|
+| Information about renewal | drivers_license_agent | "What documents do I need?" |
+| Booking exams/clinics | scheduler_agent | "Find a clinic near me" |
+| Start renewal/pay/status | detran_agent | "I want to renew my license" |
+
+### New State Keys
+| Key | Type | Purpose |
+|-----|------|--------|
+| `CURRENT_USER_ID` | UUID | Authenticated user ID |
+| `CURRENT_TICKET_ID` | UUID | Active ticket being processed |
+| `PAYMENT_PENDING` | bool | Payment awaiting confirmation |
+
+### detran_agent Capabilities
+- Guide users through CNH renewal form
+- Trigger `start_driver_license_renewal` frontend tool
+- Query tickets via MCP tools
+- Explain Lightning Network payments
+- Check payment status
 
 ---
 
@@ -232,12 +273,13 @@ Agents can connect to the MCP server and use these tools to:
 
 | Metric | Value |
 |--------|-------|
-| Phases Completed | 6/9 |
-| Files Created | 21 |
-| Files Modified | 12 |
+| Phases Completed | 7/9 |
+| Files Created | 24 |
+| Files Modified | 15 |
 | New Dependencies | 4 |
 | API Endpoints Added | 9 |
 | MCP Tools Exposed | 4 |
+| Agents Added | 1 |
 
 ---
 

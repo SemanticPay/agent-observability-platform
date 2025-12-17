@@ -44,3 +44,23 @@ SHOW_LOCATION_PICKER = "X-show-location-picker"
 Key for storing user-selected location from the UI picker.
 """
 USER_SELECTED_LOCATION = "X-user-selected-location"
+
+# --- DETRAN v2 State Keys ---
+
+"""
+@type: str (UUID)
+Key for storing the current authenticated user's ID.
+"""
+CURRENT_USER_ID = "X-current-user-id"
+
+"""
+@type: str (UUID)
+Key for storing the current ticket ID being processed.
+"""
+CURRENT_TICKET_ID = "X-current-ticket-id"
+
+"""
+@type: bool
+Key to indicate a payment is pending for the current ticket.
+"""
+PAYMENT_PENDING = "X-payment-pending"

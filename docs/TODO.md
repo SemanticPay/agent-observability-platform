@@ -261,8 +261,8 @@
 ## Phase 7: Agent Updates
 
 ### 7.1 New Agent: detran_agent
-- [ ] Create `agent/backend/agents/detran/__init__.py`
-- [ ] Create `agent/backend/agents/detran/prompt.py`:
+- [x] Create `agent/backend/agents/detran/__init__.py`
+- [x] Create `agent/backend/agents/detran/prompt.py`:
   ```python
   PROMPT = """
   You are the DETRAN-SP assistant for Brazilian driver's license services.
@@ -285,23 +285,23 @@
   Available frontend tools: start_driver_license_renewal
   """
   ```
-- [ ] Create `agent/backend/agents/detran/agent.py`:
+- [x] Create `agent/backend/agents/detran/agent.py`:
   - Import ADK Agent
   - Configure with Gemini 2.5 Flash
   - Set tools (MCP tools will be available via MCP server)
   - Add `_x_phare_workflow = "detran_services"` for observability
 
 ### 7.2 Orchestrator Update
-- [ ] Update `agent/backend/agents/orchestrator/agent.py`:
+- [x] Update `agent/backend/agents/orchestrator/agent.py`:
   - Import `detran_agent`
   - Add to `sub_agents` list
-- [ ] Update `agent/backend/agents/orchestrator/prompt.py`:
+- [x] Update `agent/backend/agents/orchestrator/prompt.py`:
   - Add routing for DETRAN intents:
     - "renew license", "renovar CNH", "ticket status" → detran_agent
     - Keep existing routing for drivers_license_agent (Q&A) and scheduler_agent
 
 ### 7.3 State Keys
-- [ ] Add to `agent/backend/state/keys.py`:
+- [x] Add to `agent/backend/state/keys.py`:
   ```python
   CURRENT_USER_ID = "current_user_id"
   CURRENT_TICKET_ID = "current_ticket_id"
