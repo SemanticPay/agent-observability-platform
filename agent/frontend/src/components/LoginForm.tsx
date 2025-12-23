@@ -39,14 +39,50 @@ export function LoginForm({ onLogin, onRegister, onCancel }: LoginFormProps) {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md mx-auto border-2 border-blue-200 animate-[pulse_2s_ease-in-out_1]">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-        {isRegister ? '✨ Create Account' : '👋 Sign In'}
-      </h2>
+    <div style={{
+      backgroundColor: 'white',
+      borderRadius: '16px',
+      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.06)',
+      padding: '40px',
+      width: '100%',
+      maxWidth: '420px',
+      margin: '0 auto',
+      border: '1px solid #e5e7eb'
+    }}>
+      {/* Header */}
+      <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '56px',
+          height: '56px',
+          backgroundColor: '#f0f9ff',
+          borderRadius: '14px',
+          marginBottom: '16px'
+        }}>
+          <span style={{ fontSize: '28px' }}>{isRegister ? '✨' : '👋'}</span>
+        </div>
+        <h2 style={{
+          fontSize: '20px',
+          fontWeight: '600',
+          color: '#111827',
+          marginBottom: '6px'
+        }}>
+          {isRegister ? 'Create Account' : 'Welcome Back'}
+        </h2>
+        <p style={{ fontSize: '14px', color: '#6b7280' }}>
+          {isRegister ? 'Sign up to get started' : 'Sign in to continue'}
+        </p>
+      </div>
       
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+      <form onSubmit={handleSubmit}>
+        {/* Email Field */}
+        <div style={{ marginBottom: '20px' }}>
+          <label 
+            htmlFor="email" 
+            style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}
+          >
             Email
           </label>
           <input
@@ -55,13 +91,28 @@ export function LoginForm({ onLogin, onRegister, onCancel }: LoginFormProps) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="you@example.com"
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              fontSize: '15px',
+              border: '1px solid #d1d5db',
+              borderRadius: '10px',
+              outline: 'none',
+              boxSizing: 'border-box',
+              transition: 'border-color 0.2s'
+            }}
+            onFocus={(e) => e.target.style.borderColor = '#2563eb'}
+            onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
           />
         </div>
 
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+        {/* Password Field */}
+        <div style={{ marginBottom: '20px' }}>
+          <label 
+            htmlFor="password" 
+            style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}
+          >
             Password
           </label>
           <input
@@ -71,14 +122,29 @@ export function LoginForm({ onLogin, onRegister, onCancel }: LoginFormProps) {
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={8}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="••••••••"
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              fontSize: '15px',
+              border: '1px solid #d1d5db',
+              borderRadius: '10px',
+              outline: 'none',
+              boxSizing: 'border-box',
+              transition: 'border-color 0.2s'
+            }}
+            onFocus={(e) => e.target.style.borderColor = '#2563eb'}
+            onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
           />
         </div>
 
+        {/* Confirm Password (Register only) */}
         {isRegister && (
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+          <div style={{ marginBottom: '20px' }}>
+            <label 
+              htmlFor="confirmPassword" 
+              style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}
+            >
               Confirm Password
             </label>
             <input
@@ -88,47 +154,91 @@ export function LoginForm({ onLogin, onRegister, onCancel }: LoginFormProps) {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               minLength={8}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="••••••••"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                fontSize: '15px',
+                border: '1px solid #d1d5db',
+                borderRadius: '10px',
+                outline: 'none',
+                boxSizing: 'border-box',
+                transition: 'border-color 0.2s'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#2563eb'}
+              onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
             />
           </div>
         )}
 
+        {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-            {error}
+          <div style={{
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '10px',
+            padding: '12px 16px',
+            marginBottom: '20px'
+          }}>
+            <p style={{ fontSize: '14px', color: '#dc2626', margin: 0 }}>{error}</p>
           </div>
         )}
 
+        {/* Submit Button */}
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ backgroundColor: '#2563eb', color: 'white' }}
+          style={{
+            width: '100%',
+            backgroundColor: '#2563eb',
+            color: 'white',
+            fontWeight: '500',
+            fontSize: '15px',
+            padding: '14px 24px',
+            borderRadius: '10px',
+            border: 'none',
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            opacity: isLoading ? 0.7 : 1,
+            transition: 'all 0.2s'
+          }}
         >
           {isLoading ? 'Please wait...' : isRegister ? 'Create Account' : 'Sign In'}
         </button>
       </form>
 
-      <div className="mt-4 text-center">
+      {/* Toggle Register/Login */}
+      <div style={{ marginTop: '24px', textAlign: 'center' }}>
         <button
           type="button"
           onClick={() => {
             setIsRegister(!isRegister);
             setError(null);
           }}
-          className="text-blue-600 hover:text-blue-700 text-sm"
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: '14px',
+            color: '#2563eb',
+            cursor: 'pointer'
+          }}
         >
           {isRegister ? 'Already have an account? Sign in' : "Don't have an account? Register"}
         </button>
       </div>
 
+      {/* Cancel Button */}
       {onCancel && (
-        <div className="mt-4 text-center">
+        <div style={{ marginTop: '16px', textAlign: 'center' }}>
           <button
             type="button"
             onClick={onCancel}
-            className="text-gray-500 hover:text-gray-700 text-sm"
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '14px',
+              color: '#6b7280',
+              cursor: 'pointer'
+            }}
           >
             Cancel
           </button>

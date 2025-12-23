@@ -227,28 +227,16 @@ function CopilotKitPageInner() {
     <div className="h-screen w-screen flex bg-gradient-to-br from-blue-50 to-white">
       {/* Main Content */}
       <div 
-        className="flex-1 flex justify-center items-start p-8 transition-colors duration-500 overflow-auto"
+        className="flex-1 flex justify-center items-center p-8 transition-colors duration-500 overflow-auto"
         style={{ background: `linear-gradient(135deg, #3b82f615 0%, white 100%)` }}
       >
         {/* Show renewal flow UI when active */}
         {renewalFlow.step !== "idle" ? (
-          <div className="bg-white p-8 rounded-3xl shadow-xl max-w-2xl w-full border border-blue-100 my-auto">
-            <h1 className="text-3xl font-bold text-blue-600 mb-6 text-center">
-              🚗 Driver's License Renewal
-            </h1>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100%' }}>
             
             {/* Login Form */}
             {!isAuthenticated && (
               <div className="space-y-4">
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                  <div className="flex items-center gap-2 text-yellow-800">
-                    <span className="text-xl">🔐</span>
-                    <span className="font-medium">Sign in required to continue</span>
-                  </div>
-                  <p className="text-yellow-700 text-sm mt-1">
-                    Please sign in or create an account to proceed with your license renewal.
-                  </p>
-                </div>
                 <LoginForm
                   onLogin={async (email, password) => {
                     await login(email, password);
@@ -309,11 +297,11 @@ function CopilotKitPageInner() {
             
             {/* Error */}
             {renewalFlow.step === "error" && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-700">{renewalFlow.error || "An error occurred"}</p>
+              <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '20px' }}>
+                <p style={{ color: '#dc2626', marginBottom: '12px' }}>{renewalFlow.error || "An error occurred"}</p>
                 <button 
                   onClick={() => renewalFlow.cancelRenewal()}
-                  className="mt-2 text-red-600 underline text-sm"
+                  style={{ color: '#dc2626', textDecoration: 'underline', fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer' }}
                 >
                   Try again
                 </button>
@@ -321,51 +309,114 @@ function CopilotKitPageInner() {
             )}
           </div>
         ) : (
-          /* Default welcome screen */
-          <div className="bg-white p-8 rounded-3xl shadow-xl max-w-2xl w-full border border-blue-100">
-            <h1 className="text-4xl font-bold text-blue-600 mb-2 text-center">
-              🚗 Driver's License Assistant
-            </h1>
-            <p className="text-gray-500 text-center text-lg mb-6">
-              Powered by Google ADK
-            </p>
-            
-            {/* Quick Action Button */}
-            <div className="mb-6">
-              <button
-                onClick={handleStartRenewal}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-[1.02] flex items-center justify-center gap-3"
-                style={{ backgroundColor: '#2563eb', color: 'white' }}
-              >
-                <span className="text-2xl">⚡</span>
-                <span>Start License Renewal (Pay with Lightning)</span>
-              </button>
-              <p className="text-center text-gray-400 text-sm mt-2">
-                1 satoshi (~$1 USD) • Instant Bitcoin payment
+          /* Default welcome screen - Modern & Elegant */
+          <div style={{ 
+            backgroundColor: 'white', 
+            padding: '48px', 
+            borderRadius: '24px', 
+            boxShadow: '0 4px 24px rgba(0, 0, 0, 0.06)',
+            maxWidth: '520px',
+            width: '100%',
+            border: '1px solid #e5e7eb'
+          }}>
+            {/* Header */}
+            <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+              <h1 style={{ 
+                fontSize: '24px', 
+                fontWeight: '600', 
+                color: '#111827',
+                marginBottom: '8px',
+                letterSpacing: '-0.025em'
+              }}>
+                Driver's License Assistant
+              </h1>
+              <p style={{ fontSize: '15px', color: '#6b7280' }}>
+                DETRAN-SP Renewal Service
               </p>
             </div>
             
-            <div className="bg-blue-50 p-5 rounded-2xl">
-              <h2 className="text-xl font-semibold mb-3 text-blue-800">How to Use</h2>
-              <ul className="space-y-2 text-gray-600 text-sm">
-                <li className="flex items-center gap-2">
-                  <span>📄</span>
-                  <span>Ask about driver's license renewal requirements</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span>🏥</span>
-                  <span>Schedule medical exam appointments</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span>📸</span>
-                  <span>Get help with document verification</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span>📍</span>
-                  <span>Select locations from the map when scheduling</span>
-                </li>
-              </ul>
+            {/* CTA Button */}
+            <button
+              onClick={handleStartRenewal}
+              style={{ 
+                width: '100%',
+                backgroundColor: '#2563eb',
+                color: 'white',
+                fontWeight: '500',
+                fontSize: '16px',
+                padding: '16px 24px',
+                borderRadius: '12px',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                transition: 'all 0.2s',
+                boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+            >
+              <span>⚡</span>
+              <span>Start License Renewal</span>
+            </button>
+            
+            {/* Payment badge */}
+            <div style={{ 
+              textAlign: 'center', 
+              marginTop: '16px',
+              padding: '10px 16px',
+              backgroundColor: '#fffbeb',
+              borderRadius: '8px',
+              border: '1px solid #fef3c7'
+            }}>
+              <span style={{ fontSize: '13px', color: '#92400e' }}>
+                ⚡ Pay with Bitcoin Lightning — 1 sat
+              </span>
             </div>
+            
+            {/* Divider */}
+            <div style={{ 
+              height: '1px', 
+              backgroundColor: '#f3f4f6', 
+              margin: '32px 0' 
+            }}></div>
+            
+            {/* Features */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+                <span style={{ fontSize: '18px' }}>📋</span>
+                <div>
+                  <p style={{ fontSize: '14px', fontWeight: '500', color: '#111827', marginBottom: '2px' }}>Requirements</p>
+                  <p style={{ fontSize: '13px', color: '#6b7280' }}>Check documents and eligibility</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+                <span style={{ fontSize: '18px' }}>🏥</span>
+                <div>
+                  <p style={{ fontSize: '14px', fontWeight: '500', color: '#111827', marginBottom: '2px' }}>Medical Exams</p>
+                  <p style={{ fontSize: '13px', color: '#6b7280' }}>Find and schedule nearby clinics</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+                <span style={{ fontSize: '18px' }}>💬</span>
+                <div>
+                  <p style={{ fontSize: '14px', fontWeight: '500', color: '#111827', marginBottom: '2px' }}>AI Assistant</p>
+                  <p style={{ fontSize: '13px', color: '#6b7280' }}>Chat for help on the right →</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <p style={{ 
+              textAlign: 'center', 
+              fontSize: '12px', 
+              color: '#9ca3af',
+              marginTop: '32px'
+            }}>
+              Powered by Google ADK
+            </p>
           </div>
         )}
       </div>
