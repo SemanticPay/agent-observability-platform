@@ -1,4 +1,5 @@
 """Tickets repository for database operations."""
+import json
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
@@ -60,7 +61,7 @@ async def create_ticket(db: AsyncSession, data: CreateTicketData) -> Ticket:
         {
             "operation_id": data.operation_id,
             "user_id": data.user_id,
-            "form_data": data.form_data,
+            "form_data": json.dumps(data.form_data),
             "ln_invoice_id": data.ln_invoice_id,
             "ln_invoice": data.ln_invoice,
             "amount_sats": data.amount_sats

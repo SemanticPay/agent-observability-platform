@@ -81,7 +81,7 @@ export function RenewalForm({ onSubmit, onCancel, isLoading = false }: RenewalFo
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div className="text-sm text-amber-800">
-            <p className="font-medium">Fee: 50,000 sats (~$50 USD)</p>
+            <p className="font-medium">Fee: 1 satoshi (~$50 USD)</p>
             <p className="text-xs mt-1">Payment via Lightning Network</p>
           </div>
         </div>
@@ -153,14 +153,16 @@ export function RenewalForm({ onSubmit, onCancel, isLoading = false }: RenewalFo
             type="button"
             onClick={onCancel}
             disabled={isLoading}
-            className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+            className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
+            style={{ backgroundColor: '#f3f4f6', color: '#374151' }}
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isLoading}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            style={{ backgroundColor: '#2563eb', color: 'white' }}
           >
             {isLoading ? (
               <>

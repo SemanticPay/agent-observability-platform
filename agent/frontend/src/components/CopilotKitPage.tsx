@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import { useCopilotAction, useCopilotChat } from "@copilotkit/react-core";
+import { Role, TextMessage } from "@copilotkit/runtime-client-gql";
 import LocationPicker, { SelectedLocation } from "./LocationPicker";
 import ClinicsMap, { Clinic } from "./ClinicsMap";
 import { AuthProvider, useAuth } from "../context/AuthContext";
@@ -23,20 +24,36 @@ interface Message {
 }
 
 function CopilotKitPageInner() {
-  const [messages, setMessages] = useState<Message[]>([
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [pendingLocationCallback, setPendingLocationCallback] = useState<((location: SelectedLocation) => void) | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Use CopilotKit's chat hook for proper agent communication
+  const {
+    visibleMessages,
+    appendMessage,
+    isLoading,
+  } = useCopilotChat();
+
+  // Convert CopilotKit messages to our Message format for display
+  const messages: Message[] = [
     {
       id: "welcome",
       role: "assistant",
       content: "👋 Hi! I'm your AI assistant.\n\nI can help you with:\n- **Driver's License**: Information about renewing, requirements, and documentation\n- **Appointments**: Schedule medical exams and clinic visits\n- **Document Processing**: Upload and verify your documents\n\nWhat can I help you with today?",
       timestamp: new Date(),
-    }
-  ]);
+    },
+    ...visibleMessages
+      .filter((msg): msg is TextMessage => msg.type === "TextMessage" || (msg as any).content !== undefined)
+      .map((msg) => ({
+        id: msg.id,
+        role: (msg.role === Role.User ? "user" : "assistant") as "user" | "assistant",
+        content: (msg as TextMessage).content || "",
+        timestamp: new Date(),
+      })),
+  ];
+
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [sessionId] = useState(() => crypto.randomUUID());
-  const [showLocationPicker, setShowLocationPicker] = useState(false);
-  const [pendingLocationCallback, setPendingLocationCallback] = useState<((location: SelectedLocation) => void) | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // CopilotKit action for selecting location from map
   useCopilotAction({
@@ -50,18 +67,8 @@ function CopilotKitPageInner() {
         required: false,
       },
     ],
-    handler: async ({ prompt }) => {
+    handler: async () => {
       return new Promise<string>((resolve) => {
-        // Show a message that we're opening the map
-        if (prompt) {
-          setMessages(prev => [...prev, {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: `📍 ${prompt}\n\n*Opening map picker...*`,
-            timestamp: new Date(),
-          }]);
-        }
-        
         // Set up the callback for when location is selected
         setPendingLocationCallback(() => (location: SelectedLocation) => {
           setShowLocationPicker(false);
@@ -98,13 +105,23 @@ function CopilotKitPageInner() {
           </div>
         );
       }
-      return null;
+      return <></>;
     },
   });
 
   // Renewal flow state
-  const { user, isAuthenticated, login, register } = useAuth();
+  const { isAuthenticated, login, register, logout } = useAuth();
   const renewalFlow = useRenewalFlow();
+
+  // Handler to start renewal (can be called from button or agent)
+  const handleStartRenewal = useCallback(() => {
+    if (!isAuthenticated) {
+      // Show login form first
+      renewalFlow.startRenewal();
+    } else {
+      renewalFlow.startRenewal();
+    }
+  }, [isAuthenticated, renewalFlow]);
 
   // CopilotKit action for starting CNH renewal with Lightning payment
   useCopilotAction({
@@ -118,133 +135,31 @@ function CopilotKitPageInner() {
         required: false,
       },
     ],
-    handler: async ({ renewal_type }) => {
+    handler: async () => {
       // Start the renewal flow
-      renewalFlow.startRenewal();
+      handleStartRenewal();
       
       if (!isAuthenticated) {
-        return "Please log in or create an account to start the renewal process. The login form is now displayed.";
+        return "Please log in or create an account to start the renewal process. The login form is now displayed in the main panel.";
       }
       
-      return `Starting ${renewal_type || 'standard'} CNH renewal process. Please fill out the renewal form.`;
+      return "Starting CNH renewal process. Please fill out the renewal form in the main panel.";
     },
     render: ({ status }) => {
-      if (status === "executing" || renewalFlow.step !== "idle") {
-        // Render the appropriate component based on flow state
-        if (!isAuthenticated && renewalFlow.step !== "idle") {
-          return (
-            <div className="my-4">
-              <LoginForm
-                onLogin={async (email, password) => {
-                  await login(email, password);
-                  renewalFlow.startRenewal();
-                }}
-                onRegister={async (email, password) => {
-                  await register(email, password);
-                  renewalFlow.startRenewal();
-                }}
-                onCancel={() => renewalFlow.cancelRenewal()}
-              />
-            </div>
-          );
-        }
-        
-        if (renewalFlow.step === "form") {
-          return (
-            <div className="my-4">
-              <RenewalForm
-                onSubmit={(data: RenewalFormData) => {
-                  renewalFlow.submitFormForConfirmation(data);
-                }}
-                onCancel={() => renewalFlow.cancelRenewal()}
-                isLoading={false}
-              />
-            </div>
-          );
-        }
-        
-        if (renewalFlow.step === "confirm" && renewalFlow.formData) {
-          return (
-            <div className="my-4">
-              <RenewalConfirmation
-                formData={renewalFlow.formData}
-                operationPrice={renewalFlow.operationPrice}
-                onConfirm={() => renewalFlow.confirmAndCreateTicket()}
-                onEdit={() => renewalFlow.editForm()}
-                isLoading={renewalFlow.step === "confirming"}
-              />
-            </div>
-          );
-        }
-        
-        if (renewalFlow.step === "confirming") {
-          return (
-            <div className="my-4">
-              <RenewalConfirmation
-                formData={renewalFlow.formData!}
-                operationPrice={renewalFlow.operationPrice}
-                onConfirm={() => {}}
-                onEdit={() => {}}
-                isLoading={true}
-              />
-            </div>
-          );
-        }
-        
-        if (renewalFlow.step === "payment" && renewalFlow.ticket) {
-          return (
-            <div className="my-4">
-              <PaymentQR
-                invoice={renewalFlow.ticket.ln_invoice}
-                amountSats={renewalFlow.ticket.amount_sats}
-                onConfirmPayment={() => renewalFlow.confirmPayment()}
-                onCancel={() => renewalFlow.cancelRenewal()}
-                isConfirming={false}
-                error={renewalFlow.error}
-                confirmAttempts={renewalFlow.confirmAttempts}
-              />
-            </div>
-          );
-        }
-        
-        if (renewalFlow.step === "success") {
-          return (
-            <div className="my-4">
-              <PaymentStatus
-                status="paid"
-                ticketId={renewalFlow.ticket?.ticket_id || ''}
-                onClose={() => renewalFlow.cancelRenewal()}
-              />
-            </div>
-          );
-        }
-        
-        if (renewalFlow.step === "error") {
-          return (
-            <div className="my-4 bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-red-700">{renewalFlow.error || "An error occurred"}</p>
-              <button 
-                onClick={() => renewalFlow.cancelRenewal()}
-                className="mt-2 text-red-600 underline text-sm"
-              >
-                Try again
-              </button>
-            </div>
-          );
-        }
-        
+      // Don't render anything in chat - forms are shown in main panel
+      if (status === "executing") {
         return (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 my-2">
             <div className="flex items-center gap-2 text-blue-700">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="font-medium">Starting renewal process...</span>
+              <span className="font-medium">Opening renewal form...</span>
             </div>
           </div>
         );
       }
-      return null;
+      return <></>;
     },
   });
 
@@ -256,83 +171,29 @@ function CopilotKitPageInner() {
     scrollToBottom();
   }, [messages]);
 
+  // Send message using CopilotKit's appendMessage
   const sendMessage = async (messageContent?: string) => {
     const content = messageContent || input.trim();
     if (!content || isLoading) return;
 
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: content,
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
     setInput("");
-    setIsLoading(true);
-
-    try {
-      const response = await fetch("http://localhost:8000/query", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: content,
-          session_id: sessionId,
-        }),
-      });
-
-      const data = await response.json();
-      
-      // Check if response contains clinic data in widgets
-      let clinics: Clinic[] | undefined;
-      let userLocation: { lat: number; lng: number } | undefined;
-      
-      // Parse widgets for clinic data
-      if (data.widgets && Array.isArray(data.widgets)) {
-        console.log("Parsing widgets:", data.widgets);
-        for (const widget of data.widgets) {
-          if (widget.type === 'clinics_map' && widget.data) {
-            // Handle clinic data - could be array of objects or Pydantic models
-            if (Array.isArray(widget.data.clinics)) {
-              clinics = widget.data.clinics.map((c: any) => ({
-                id: c.id || c.clinic_id || String(Math.random()),
-                name: c.name,
-                address: c.address,
-                latitude: c.latitude,
-                longitude: c.longitude,
-                exam_types: c.exam_types || [],
-                distance_km: c.distance_km || 0,
-              }));
-            }
-            if (widget.data.userLocation) {
-              userLocation = widget.data.userLocation;
-            }
-            console.log("Found clinics:", clinics?.length, "userLocation:", userLocation);
-          }
-        }
-      }
-      
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: data.response || "Sorry, I couldn't process that request.",
-        timestamp: new Date(),
-        clinics,
-        userLocation,
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
-      console.error("Error:", error);
-      setMessages(prev => [...prev, {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: "Sorry, there was an error connecting to the server. Please try again.",
-        timestamp: new Date(),
-      }]);
-    } finally {
-      setIsLoading(false);
+    
+    // Check if user is asking about license renewal - auto-trigger the form
+    const lowerContent = content.toLowerCase();
+    const renewalKeywords = ['renew', 'renewal', 'renovar', 'renovação', 'cnh', 'license', 'licença', 'carteira'];
+    const isRenewalRequest = renewalKeywords.some(keyword => lowerContent.includes(keyword));
+    
+    if (isRenewalRequest && renewalFlow.step === 'idle') {
+      // Auto-trigger the renewal form
+      handleStartRenewal();
     }
+    
+    // Use CopilotKit's appendMessage to send message through the agent
+    appendMessage(new TextMessage({
+      id: crypto.randomUUID(),
+      role: Role.User,
+      content: content,
+    }));
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -366,47 +227,178 @@ function CopilotKitPageInner() {
     <div className="h-screen w-screen flex bg-gradient-to-br from-blue-50 to-white">
       {/* Main Content */}
       <div 
-        className="flex-1 flex justify-center items-center p-8 transition-colors duration-500"
+        className="flex-1 flex justify-center items-start p-8 transition-colors duration-500 overflow-auto"
         style={{ background: `linear-gradient(135deg, #3b82f615 0%, white 100%)` }}
       >
-        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-2xl w-full border border-blue-100">
-          <h1 className="text-4xl font-bold text-blue-600 mb-2 text-center">
-            🚗 Driver's License Assistant
-          </h1>
-          <p className="text-gray-500 text-center text-lg mb-6">
-            Powered by Google ADK
-          </p>
-          
-          <div className="bg-blue-50 p-5 rounded-2xl">
-            <h2 className="text-xl font-semibold mb-3 text-blue-800">How to Use</h2>
-            <ul className="space-y-2 text-gray-600 text-sm">
-              <li className="flex items-center gap-2">
-                <span>📄</span>
-                <span>Ask about driver's license renewal requirements</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span>🏥</span>
-                <span>Schedule medical exam appointments</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span>📸</span>
-                <span>Get help with document verification</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span>📍</span>
-                <span>Select locations from the map when scheduling</span>
-              </li>
-            </ul>
+        {/* Show renewal flow UI when active */}
+        {renewalFlow.step !== "idle" ? (
+          <div className="bg-white p-8 rounded-3xl shadow-xl max-w-2xl w-full border border-blue-100 my-auto">
+            <h1 className="text-3xl font-bold text-blue-600 mb-6 text-center">
+              🚗 Driver's License Renewal
+            </h1>
+            
+            {/* Login Form */}
+            {!isAuthenticated && (
+              <div className="space-y-4">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-center gap-2 text-yellow-800">
+                    <span className="text-xl">🔐</span>
+                    <span className="font-medium">Sign in required to continue</span>
+                  </div>
+                  <p className="text-yellow-700 text-sm mt-1">
+                    Please sign in or create an account to proceed with your license renewal.
+                  </p>
+                </div>
+                <LoginForm
+                  onLogin={async (email, password) => {
+                    await login(email, password);
+                    renewalFlow.startRenewal();
+                  }}
+                  onRegister={async (email, password) => {
+                    await register(email, password);
+                    renewalFlow.startRenewal();
+                  }}
+                  onCancel={() => renewalFlow.cancelRenewal()}
+                />
+              </div>
+            )}
+            
+            {/* Renewal Form */}
+            {isAuthenticated && renewalFlow.step === "form" && (
+              <RenewalForm
+                onSubmit={(data: RenewalFormData) => {
+                  renewalFlow.submitFormForConfirmation(data);
+                }}
+                onCancel={() => renewalFlow.cancelRenewal()}
+                isLoading={false}
+              />
+            )}
+            
+            {/* Confirmation */}
+            {isAuthenticated && (renewalFlow.step === "confirm" || renewalFlow.step === "confirming") && renewalFlow.formData && (
+              <RenewalConfirmation
+                formData={renewalFlow.formData}
+                operationPrice={renewalFlow.operationPrice}
+                onConfirm={() => renewalFlow.confirmAndCreateTicket()}
+                onEdit={() => renewalFlow.editForm()}
+                isLoading={renewalFlow.step === "confirming"}
+              />
+            )}
+            
+            {/* Payment */}
+            {isAuthenticated && renewalFlow.step === "payment" && renewalFlow.ticket && (
+              <PaymentQR
+                invoice={renewalFlow.ticket.ln_invoice}
+                amountSats={renewalFlow.ticket.amount_sats}
+                onConfirmPayment={() => renewalFlow.confirmPayment()}
+                onCancel={() => renewalFlow.cancelRenewal()}
+                isConfirming={false}
+                error={renewalFlow.error}
+                confirmAttempts={renewalFlow.confirmAttempts}
+              />
+            )}
+            
+            {/* Success */}
+            {renewalFlow.step === "success" && (
+              <PaymentStatus
+                status="paid"
+                ticketId={renewalFlow.ticket?.ticket_id || ''}
+                onClose={() => renewalFlow.cancelRenewal()}
+              />
+            )}
+            
+            {/* Error */}
+            {renewalFlow.step === "error" && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-700">{renewalFlow.error || "An error occurred"}</p>
+                <button 
+                  onClick={() => renewalFlow.cancelRenewal()}
+                  className="mt-2 text-red-600 underline text-sm"
+                >
+                  Try again
+                </button>
+              </div>
+            )}
           </div>
-        </div>
+        ) : (
+          /* Default welcome screen */
+          <div className="bg-white p-8 rounded-3xl shadow-xl max-w-2xl w-full border border-blue-100">
+            <h1 className="text-4xl font-bold text-blue-600 mb-2 text-center">
+              🚗 Driver's License Assistant
+            </h1>
+            <p className="text-gray-500 text-center text-lg mb-6">
+              Powered by Google ADK
+            </p>
+            
+            {/* Quick Action Button */}
+            <div className="mb-6">
+              <button
+                onClick={handleStartRenewal}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-[1.02] flex items-center justify-center gap-3"
+                style={{ backgroundColor: '#2563eb', color: 'white' }}
+              >
+                <span className="text-2xl">⚡</span>
+                <span>Start License Renewal (Pay with Lightning)</span>
+              </button>
+              <p className="text-center text-gray-400 text-sm mt-2">
+                1 satoshi (~$1 USD) • Instant Bitcoin payment
+              </p>
+            </div>
+            
+            <div className="bg-blue-50 p-5 rounded-2xl">
+              <h2 className="text-xl font-semibold mb-3 text-blue-800">How to Use</h2>
+              <ul className="space-y-2 text-gray-600 text-sm">
+                <li className="flex items-center gap-2">
+                  <span>📄</span>
+                  <span>Ask about driver's license renewal requirements</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span>🏥</span>
+                  <span>Schedule medical exam appointments</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span>📸</span>
+                  <span>Get help with document verification</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span>📍</span>
+                  <span>Select locations from the map when scheduling</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Chat Sidebar */}
       <div className="w-[420px] min-w-[420px] max-w-[420px] bg-white border-l border-blue-100 flex flex-col shadow-lg overflow-hidden">
         {/* Header */}
-        <div className="p-4 border-b border-blue-100 bg-blue-600">
-          <h2 className="text-white font-semibold text-lg">Agent Assistant</h2>
-          <p className="text-blue-100 text-xs">Ask me anything about driver's licenses</p>
+        <div className="p-4 border-b border-blue-100" style={{ backgroundColor: '#2563eb' }}>
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="font-semibold text-lg" style={{ color: 'white' }}>Agent Assistant</h2>
+              <p className="text-xs" style={{ color: '#bfdbfe' }}>
+                {isAuthenticated ? '✓ Logged in' : 'Ask me anything about driver\'s licenses'}
+              </p>
+            </div>
+            {isAuthenticated && (
+              <button
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to logout?')) {
+                    logout();
+                    renewalFlow.cancelRenewal();
+                  }
+                }}
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors hover:opacity-80"
+                style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: 'white' }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'white' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Logout
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Messages */}

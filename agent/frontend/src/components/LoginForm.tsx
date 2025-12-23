@@ -39,9 +39,9 @@ export function LoginForm({ onLogin, onRegister, onCancel }: LoginFormProps) {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md mx-auto">
+    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md mx-auto border-2 border-blue-200 animate-[pulse_2s_ease-in-out_1]">
       <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-        {isRegister ? 'Create Account' : 'Sign In'}
+        {isRegister ? '✨ Create Account' : '👋 Sign In'}
       </h2>
       
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -103,7 +103,8 @@ export function LoginForm({ onLogin, onRegister, onCancel }: LoginFormProps) {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ backgroundColor: '#2563eb', color: 'white' }}
         >
           {isLoading ? 'Please wait...' : isRegister ? 'Create Account' : 'Sign In'}
         </button>

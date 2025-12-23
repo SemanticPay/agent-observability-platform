@@ -135,6 +135,7 @@ export function RenewalConfirmation({
           onClick={onConfirm}
           disabled={isLoading}
           className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          style={{ backgroundColor: '#2563eb', color: 'white' }}
         >
           {isLoading ? (
             <>

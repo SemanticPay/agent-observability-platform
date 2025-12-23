@@ -55,7 +55,7 @@
       outDir: 'build',
     },
     server: {
-      port: 3000,
+      port: 5173,
       open: true,
       proxy: {
         '/query': {
@@ -63,6 +63,14 @@
           changeOrigin: true,
         },
         '/upload-photo': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+        },
+        '/api': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+        },
+        '/copilot': {
           target: 'http://localhost:8000',
           changeOrigin: true,
         }

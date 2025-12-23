@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 const API_BASE = 'http://localhost:8000';
 
 // Default operation price in satoshis (will be fetched from API)
-const DEFAULT_OPERATION_PRICE = 50000;
+const DEFAULT_OPERATION_PRICE = 1;
 
 export type RenewalFlowStep = 'idle' | 'form' | 'confirm' | 'payment' | 'confirming' | 'success' | 'error';
 
@@ -44,12 +44,17 @@ export function useRenewalFlow() {
   });
 
   const startRenewal = useCallback(async () => {
+    // If not authenticated, set step to 'form' so UI can show login
+    // The actual form will be shown after login
     if (!isAuthenticated) {
-      setState(prev => ({
-        ...prev,
-        step: 'error',
-        error: 'Please log in to renew your license',
-      }));
+      setState({
+        step: 'form',  // Shows login form in UI
+        formData: null,
+        ticket: null,
+        operationPrice: DEFAULT_OPERATION_PRICE,
+        error: null,
+        confirmAttempts: 0,
+      });
       return;
     }
     

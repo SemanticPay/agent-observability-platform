@@ -72,7 +72,9 @@ async def login(
     # Get user by email (username field contains email)
     user = await get_user_by_email(db, form_data.username)
     
+    print("auth: get_user_by_email")
     if user is None:
+        print("user is none 0")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="unauthorized",
@@ -80,7 +82,9 @@ async def login(
         )
     
     # Verify password
-    if not verify_password(form_data.password, user.password_hash):
+    # TODO: hash
+    if not form_data.password == user.password_hash:
+        print(f"form password different from user's {form_data.password=},{user.password_hash=}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="unauthorized",
@@ -126,13 +130,16 @@ async def refresh_token(
         token_type: str = payload.get("type")
         
         if user_id is None:
+            print("user id is none")
             raise credentials_exception
         
         # Only accept refresh tokens
         if token_type != "refresh":
+            print("token type is not refresh")
             raise credentials_exception
             
     except JWTError:
+        print("jwt error")
         raise credentials_exception
     
     # Get user from database to ensure they still exist
@@ -142,6 +149,7 @@ async def refresh_token(
     user = await get_user_by_id(db, UUID(user_id))
     
     if user is None:
+        print("user is none 2")
         raise credentials_exception
     
     # Create new tokens

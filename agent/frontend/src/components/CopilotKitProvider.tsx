@@ -7,8 +7,10 @@ interface CopilotKitProviderProps {
 }
 
 export function CopilotKitProvider({ children }: CopilotKitProviderProps) {
-  // Connect to the FastAPI backend custom CopilotKit endpoint
-  const runtimeUrl = "http://localhost:8000/api/copilotkit";
+  // Connect to CopilotKit runtime server which handles frontend actions
+  // The runtime server connects to the ADK backend at /copilot and 
+  // properly exposes frontend actions to the agent
+  const runtimeUrl = "http://localhost:3001/copilotkit";
 
   return (
     <CopilotKit 

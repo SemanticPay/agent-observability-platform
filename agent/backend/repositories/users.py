@@ -24,7 +24,9 @@ async def create_user(db: AsyncSession, user: UserCreate) -> UserInDB:
     Raises:
         IntegrityError: If email already exists
     """
-    password_hash = hash_password(user.password)
+    # password_hash = hash_password(user.password)
+    # TODO: hash password
+    password_hash = user.password
     
     result = await db.execute(
         text("""

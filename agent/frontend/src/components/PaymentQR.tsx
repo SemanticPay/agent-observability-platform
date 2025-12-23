@@ -126,6 +126,7 @@ export function PaymentQR({
           onClick={onConfirmPayment}
           disabled={isConfirming}
           className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          style={{ backgroundColor: '#0044ccff', color: '#ffffffff' }}
         >
           {isConfirming ? (
             <>

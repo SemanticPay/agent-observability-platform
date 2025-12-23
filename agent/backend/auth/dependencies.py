@@ -35,6 +35,7 @@ async def get_current_user(
     Raises:
         HTTPException: 401 if token invalid or user not found
     """
+    print("dependencies get_current_user")
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="unauthorized",

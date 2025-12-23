@@ -12,8 +12,8 @@ from config import (
     REFRESH_TOKEN_EXPIRE_DAYS,
 )
 
-# Password hashing context using bcrypt
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing context using bcrypt with truncate_error disabled
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__truncate_error=False)
 
 
 def hash_password(password: str) -> str:
@@ -25,8 +25,13 @@ def hash_password(password: str) -> str:
         
     Returns:
         Hashed password string
+        
+    Note:
+        bcrypt has a 72-byte limit, so we truncate if necessary
     """
-    return pwd_context.hash(password)
+    # bcrypt has a 72-byte limit - truncate string directly
+    truncated = password[:72]
+    return pwd_context.hash(truncated)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -40,7 +45,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         True if passwords match, False otherwise
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    # Truncate to match what was hashed (bcrypt 72-byte limit)
+    truncated = plain_password[:72]
+    return pwd_context.verify(truncated, hashed_password)
 
 
 def create_access_token(
