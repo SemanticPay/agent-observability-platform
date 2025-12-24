@@ -2,6 +2,45 @@
 
 A multi-agent AI system for Brazilian driver's license renewal assistance, built with Google ADK (Agent Development Kit). The system uses a hierarchical agent architecture with an orchestrator routing queries to specialized sub-agents, powered by Vertex AI RAG for document retrieval.
 
+## DETRAN-SP v2 Features (NEW)
+
+The v2 release adds transactional capabilities with Lightning Network payments:
+
+- **User Authentication**: JWT-based auth with register/login/refresh
+- **Ticket System**: Create service tickets with form validation
+- **Lightning Payments**: Pay with Bitcoin via BOLT11 invoices (stubbed for dev)
+- **MCP Server**: AI agents can query operations/tickets via MCP protocol
+- **New Agent**: `detran_agent` handles renewals and payment guidance
+
+### Quick Start (v2)
+
+```bash
+# Start PostgreSQL
+docker-compose up -d postgres
+
+# Run backend
+make backend
+
+# Run frontend
+make frontend
+```
+
+### v2 API Endpoints
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | /api/v1/auth/register | No | Create user |
+| POST | /api/v1/auth/login | No | Get JWT tokens |
+| POST | /api/v1/auth/refresh | No | Refresh token |
+| GET | /api/v1/operations | No | List DETRAN operations |
+| GET | /api/v1/operations/{id} | No | Get operation details |
+| POST | /api/v1/tickets | Yes | Create ticket + LN invoice |
+| GET | /api/v1/tickets | Yes | List user tickets |
+| GET | /api/v1/tickets/{id} | Yes | Get ticket details |
+| POST | /api/v1/tickets/{id}/confirm-payment | Yes | Confirm payment |
+
+---
+
 ## Architecture
 
 The system follows a hierarchical multi-agent architecture:
@@ -10,8 +49,10 @@ The system follows a hierarchical multi-agent architecture:
 orchestrator_agent (routes queries)
 ├── drivers_license_agent (RAG-powered Q&A)
 │   └── Tool: get_drivers_license_context
-└── scheduler_agent (clinic search & booking)
-    └── Tools: geocode_location, search_nearby_clinics, book_exam
+├── scheduler_agent (clinic search & booking)
+│   └── Tools: geocode_location, search_nearby_clinics, book_exam
+└── detran_agent (NEW - transactions & payments)
+    └── Tools: MCP tools (list_operations, get_ticket, etc.)
 ```
 
 ### Core Components
@@ -22,20 +63,31 @@ agent/
 │   ├── agents/           # Agent definitions (orchestrator + sub-agents)
 │   │   ├── orchestrator/ # Root agent that routes questions
 │   │   ├── drivers_license/ # RAG-powered license renewal Q&A
-│   │   └── scheduler/    # Clinic search and exam booking
+│   │   ├── scheduler/    # Clinic search and exam booking
+│   │   └── detran/       # NEW: Transactions & payments
+│   ├── auth/            # NEW: JWT authentication
+│   ├── spark/           # NEW: Lightning Network client (stubbed)
+│   ├── mcp/             # NEW: MCP server for agent tools
+│   ├── routes/          # NEW: REST API endpoints
+│   ├── repositories/    # NEW: Database access layer
 │   ├── tools/           # Tool implementations (callable by agents)
-│   ├── database/        # Mock database classes
+│   ├── database/        # Mock + PostgreSQL databases
 │   ├── rag/             # Vertex RAG pipeline
 │   ├── state/           # Shared state key constants
 │   ├── types/           # Pydantic models
 │   ├── photo/           # Vision API classification
 │   └── main.py          # FastAPI server
-└── front/               # Flask web UI
+├── frontend/            # Vite + React chat UI
+db/                      # NEW: PostgreSQL schema & seeds
 ```
 
 **Key Features:**
 - Multi-agent orchestration using Google ADK
 - Vertex AI RAG with corpus-based document retrieval
+- **NEW**: PostgreSQL database for users, tickets, operations
+- **NEW**: JWT authentication with access/refresh tokens
+- **NEW**: Lightning Network payments (BOLT11 invoices)
+- **NEW**: MCP server for agent tool access
 - Mock databases for demonstration (clinics, bookings, photos)
 - Photo classification using Google Vision API
 - Google Maps integration for clinic geocoding
@@ -43,7 +95,8 @@ agent/
 ## Prerequisites
 
 1. **Google Cloud Project** with billing enabled
-2. **Required APIs enabled**:
+2. **Docker** (for PostgreSQL)
+3. **Required APIs enabled**:
    - Vertex AI API (for Gemini models and RAG)
    - Cloud Vision API (for photo classification)
    - Google Maps API (for geocoding)
@@ -73,6 +126,7 @@ cp .env.example .env
 
 4. **Edit `.env` with your Google Cloud configuration:**
 ```env
+# Google Cloud
 GOOGLE_CLOUD_PROJECT_ID=your-project-id
 GCS_LOCATION=us-central1
 VERTEX_RAG_CORPUS=your-corpus-name
@@ -81,6 +135,24 @@ GCS_BUCKET_NAME=your-bucket-name
 VERTEX_AI_INDEX_ID=your-index-id
 VERTEX_AI_INDEX_ENDPOINT_ID=your-endpoint-id
 EMBEDDING_MODEL=text-embedding-005
+
+# Database (v2)
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=detran
+POSTGRES_USER=detran
+POSTGRES_PASSWORD=detran
+
+# Authentication (v2)
+JWT_SECRET_KEY=change-me-in-production
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Lightning Network (v2)
+SPARK_MODE=stub  # stub | production
+SPARK_API_URL=
+SPARK_API_KEY=
 ```
 
 5. **Authenticate with Google Cloud:**

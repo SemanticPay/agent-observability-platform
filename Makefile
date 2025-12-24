@@ -1,5 +1,5 @@
 .PHONY: install
-install: install-backend install-frontend install-dashboard
+install: install-backend install-frontend install-dashboard install-runtime
 	@echo "✓ All dependencies installed"
 
 .PHONY: install-backend
@@ -10,12 +10,17 @@ install-backend:
 .PHONY: install-frontend
 install-frontend:
 	@echo "Installing Node.js frontend dependencies..."
-	cd agent/frontend && npm install
+	cd agent/frontend && npm install --legacy-peer-dep
 
 .PHONY: install-dashboard
 install-dashboard:
 	@echo "Installing Node.js dashboard dependencies..."
-	cd dashboard-ui/new && npm install
+	cd dashboard-ui/new && npm install --legacy-peer-deps
+
+.PHONY: install-runtime
+install-runtime:
+	@echo "Installing CopilotKit runtime dependencies..."
+	npm install
 
 .PHONY: backend
 backend:
@@ -41,6 +46,16 @@ dashboard-chat:
 prometheus:
 	@echo "Starting Prometheus..."
 	docker compose up
+
+.PHONY: copilotkit-runtime
+copilotkit-runtime:
+	@echo "Starting CopilotKit runtime server on http://localhost:3001"
+	node copilotkit-runtime-final.js
+
+.PHONY: copilot
+copilot:
+	@echo "Starting full CopilotKit stack (backend + runtime + frontend)..."
+	@./start-copilotkit-full.sh
 
 all:
 	@echo "Starting both backend and frontend..."

@@ -13,6 +13,7 @@ from google.genai import types
 
 from agent.backend.agents.drivers_license.agent import drivers_license_agent
 from agent.backend.agents.scheduler.agent import scheduler_agent
+from agent.backend.agents.detran.agent import detran_agent
 from agent.backend.agents.orchestrator.prompt import PROMPT
 from agent.backend.types.types import AgentCallRequest, AgentCallResponse, FunctionPayload
 
@@ -38,6 +39,7 @@ ORCHESTRATOR_AGENT = Agent(
     sub_agents=[
         drivers_license_agent,
         scheduler_agent,
+        detran_agent,
     ],
 )
 logger.info("orchestrator-agent created successfully")

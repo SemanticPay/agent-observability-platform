@@ -4,7 +4,7 @@
 
 const express = require('express');
 const cors = require('cors');
-const { CopilotRuntime, copilotRuntimeNodeHttpEndpoint } = require('@copilotkit/runtime');
+const { CopilotRuntime, copilotRuntimeNodeHttpEndpoint, ExperimentalEmptyAdapter } = require('@copilotkit/runtime');
 const { HttpAgent } = require('@ag-ui/client');
 
 const app = express();
@@ -17,6 +17,9 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+// Service adapter for agent-only setup (no direct LLM calls from runtime)
+const serviceAdapter = new ExperimentalEmptyAdapter();
 
 // Create CopilotRuntime with your AG-UI agent (exact format from reference)
 const runtime = new CopilotRuntime({
@@ -32,6 +35,7 @@ app.use('/copilotkit', async (req, res) => {
   
   const handleRequest = copilotRuntimeNodeHttpEndpoint({
     runtime,
+    serviceAdapter,
     endpoint: '/copilotkit'
   });
   

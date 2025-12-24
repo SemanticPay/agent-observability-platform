@@ -190,3 +190,103 @@ class ConversationMetrics(BaseModel):
     avg_runs_per_conversation: float = 0.0
     avg_tool_calls_per_conversation: float = 0.0
     time_range: str
+
+
+# --- Auth Request/Response Types ---
+
+class RegisterRequest(BaseModel):
+    """Request model for user registration."""
+    email: str
+    password: str = Field(..., min_length=8)
+
+
+class LoginRequest(BaseModel):
+    """Request model for user login."""
+    email: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    """Response model for successful login."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
+class TokenRefreshRequest(BaseModel):
+    """Request model for token refresh."""
+    refresh_token: str
+
+
+class TokenRefreshResponse(BaseModel):
+    """Response model for token refresh."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
+# --- Ticket Request/Response Types ---
+
+class CreateTicketRequest(BaseModel):
+    """Request model for creating a ticket."""
+    operation_id: int
+    form_data: dict
+
+
+class CreateTicketResponse(BaseModel):
+    """Response model for ticket creation."""
+    ticket_id: str  # UUID as string for JSON
+    ln_invoice: str  # BOLT11 invoice
+    amount_sats: int
+    expires_at: datetime  # Invoice expiration timestamp
+
+    class Config:
+        from_attributes = True
+
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        return v
+
+    def __init__(self, **data):
+        # Convert UUID to string if needed
+        if 'ticket_id' in data and not isinstance(data['ticket_id'], str):
+            data['ticket_id'] = str(data['ticket_id'])
+        super().__init__(**data)
+
+
+class TicketResponse(BaseModel):
+    """Response model for ticket details."""
+    id: str  # UUID as string
+    operation_id: int
+    operation_name: str
+    form_data: dict
+    ln_invoice: Optional[str] = None
+    amount_sats: int
+    payment_status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+    def __init__(self, **data):
+        # Convert UUID to string if needed
+        if 'id' in data and not isinstance(data['id'], str):
+            data['id'] = str(data['id'])
+        super().__init__(**data)
+
+
+class TicketListResponse(BaseModel):
+    """Response model for listing tickets."""
+    tickets: list[TicketResponse]
+    total: int
+
+
+class ConfirmPaymentResponse(BaseModel):
+    """Response model for payment confirmation."""
+    status: str  # 'pending' | 'paid' | 'expired'

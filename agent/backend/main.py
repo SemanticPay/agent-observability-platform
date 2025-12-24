@@ -27,6 +27,10 @@ from agent.backend.types.types import (
 )
 from agent.backend.database.photo import MockPhotoDatabase
 from agent.backend.photo.classification import classify_photo
+from agent.backend.routes.auth import router as auth_router
+from agent.backend.routes.operations import router as operations_router
+from agent.backend.routes.tickets import router as tickets_router
+from agent.backend.mcp import setup_mcp
 from config import UPLOAD_DIR
 
 
@@ -45,6 +49,17 @@ app = FastAPI(
     version="1.0.0",
 )
 logger.info("FastAPI application initialized")
+
+# Mount API routers
+app.include_router(auth_router)
+logger.info("Auth router mounted at /api/v1/auth")
+app.include_router(operations_router)
+logger.info("Operations router mounted at /api/v1/operations")
+app.include_router(tickets_router)
+logger.info("Tickets router mounted at /api/v1/tickets")
+
+# Setup MCP server (must be after all routes are mounted)
+setup_mcp(app)
 
 # Create metrics endpoint
 metrics_app = make_asgi_app()
