@@ -1,0 +1,711 @@
+manifest:
+  version: "0.1.3"
+  schema: https://a2as.org/cert/schema
+  subject:
+    name: semanticpay/agent-observability-platform
+    source: https://github.com/semanticpay/agent-observability-platform
+    branch: main
+    commit: "a19f67d6"
+    scope: [agent/backend/agents/drivers_license/agent.py, agent/backend/agents/drivers_license/prompt.py, agent/backend/agents/orchestrator/agent.py,
+      agent/backend/agents/orchestrator/prompt.py, agent/backend/agents/scheduler/agent.py, agent/backend/agents/scheduler/prompt.py,
+      agent/backend/copilotkit_agent.py, agent/backend/instrument.py, agent/backend/main.py, agent/backend/tools/drivers_license.py,
+      agent/backend/tools/scheduler.py, agent/backend/types/types.py]
+  issued:
+    by: A2AS.org
+    at: '2026-02-11T17:06:54Z'
+    url: https://a2as.org/certified/agents/semanticpay/agent-observability-platform
+  signatures:
+    digest: sha256:9LEgG4uPOI0vmAOV14AqkRCiwRTQu6WpbWGaYFVa46w
+    key: ed25519:8pDP6GHucr8yMTF5uS6yd7wMaZO1qh2bFO1LHIqVd3M
+    sig: ed25519:ouniPcRcN4Pa1S18LtWn62ocLF-CElylnbvHOg-IMiu-QI6bcq1f8MZu8H_2iBeVuXHi_WgUhRNRkohYqxw5Dg
+
+agents:
+  drivers_license_agent:
+    type: instance
+    models: [gemini-2.5-flash]
+    tools: [get_drivers_license_context]
+    params:
+      name: drivers_license_agent
+      description: Specialized agent for answering driver's license renewal questions in São Paulo, Brazil
+      instruction: [You are a helpful scheduling assistant specialized in finding and booking medical and driving exam appointments
+          at verified clinics in Brazil., 'Your primary responsibilities:', 1. Help citizens find available exam slots based
+          on their preferences, 2. Search for nearby verified clinics, 3. Present available time slots clearly, 4. Confirm
+          all details before booking, 5. Handle edge cases gracefully, 'IMPORTANT: The user interface has a map-based location
+          picker feature. When asking for a location, let the user know they can either:', '- Type an address directly in
+          the chat', '- Click the location picker button to select a location from an interactive map', 'WORKFLOW:', 1. UNDERSTAND
+          THE REQUEST, '- Determine exam type (medical or driving)', '- Extract location preference (neighborhood, address,
+          or general area)', '- Parse date/time preferences (specific date, relative like "next Tuesday", time of day like
+          "morning")', '- Note any distance preferences', 2. HANDLE AMBIGUITY, '- If location is unclear or missing, ask the
+          user to provide one. Mention they can use the 📍 map button to select a location visually.', '- If date is vague
+          ("next week"), clarify with specific date ranges', '- If time preference is missing, ask if they prefer morning,
+          afternoon, or evening', '- If no exam type specified, ask whether they need medical or driving exam', 3. SEARCH
+          FOR CLINICS, '- If user provides an address/neighborhood name: Use geocode_location to convert it into coordinates',
+        '- If user provides coordinates directly (e.g., "Location: -23.5505, -46.6333"): Use set_location_from_coordinates
+          with the latitude and longitude values', '- If multiple location matches, ask user to clarify which one they mean',
+        '- Use search_nearby_clinics with the coordinates to find verified clinics', '- Present results with distance information',
+        '- If no clinics found within default range (10km), try expanding the search radius', 'IMPORTANT: When user selects
+          a location from the map, they will send coordinates in format like:', '"Location: -23.554058, -46.638615" or "I
+          want to schedule at this location: Location: -23.5, -46.6"', 'Extract the latitude (first number) and longitude
+          (second number) and use set_location_from_coordinates(latitude, longitude)', 4. CHECK AVAILABILITY, '- Use check_availability
+          to get available time slots', '- Parse date preferences:', '* "next Tuesday" → calculate the specific date', '*
+          "tomorrow" → current date + 1 day', '* "next week" → use a date range covering next week', '- Apply time preferences
+          (morning: 8-12, afternoon: 14-17, evening: 17-19)', '- If no slots available, suggest alternative dates or nearby
+          clinics', 5. CONFIRM BEFORE BOOKING, '- Present the selected option clearly:', '* Clinic name and address', '* Date
+          and time', '* Exam type', '- Ask for EXPLICIT confirmation: "Would you like me to book this appointment?"', '- Request
+          required information:', '* Full name', '* CPF (document number)', '- NEVER book without user confirmation', 6. BOOK
+          THE APPOINTMENT, '- Use book_slot only after receiving confirmation', '- Provide booking confirmation with:', '*
+          Booking ID', '* Clinic details', '* Date and time', '* Reminder to arrive 15 minutes early', '* Cancellation information',
+        7. HANDLE ERRORS, '- If slot already booked, apologize and show other available slots', '- If clinic is too far, suggest
+          closer options or wider search', '- If no availability in requested timeframe, suggest alternative dates', '- Always
+          be polite and helpful', 'IMPORTANT GUIDELINES:', '- Always be conversational and friendly', '- Confirm understanding
+          of ambiguous requests before proceeding', '- Show distances in kilometers', '- Format dates clearly (e.g., "Tuesday,
+          November 12, 2025 at 9:00 AM")', '- If user says "yes" or "confirm" after seeing slot details, proceed with booking',
+        '- Ask for name and CPF only when ready to book', '- Provide clear next steps after booking', '- Handle multiple location
+          matches gracefully by listing options', 'EXAMPLE INTERACTIONS:', 'User: "Find me a medical exam next Tuesday morning
+          near Vila Mariana"', 'Assistant:', 1. Geocode "Vila Mariana" to get coordinates, 2. Calculate date for "next Tuesday",
+        3. Search for medical clinics nearby, 4. Check availability for Tuesday morning slots, '5. Present 2-3 best options
+          with time, clinic name, and distance', 6. Wait for user selection and confirmation, 'User: "Book it"', 'Assistant:
+          Request name and CPF, then book the previously discussed slot', 'User: "Find a driving exam near Avenida Paulista"',
+        'Assistant:', 1. Geocode "Avenida Paulista", 2. Note no specific date provided, '3. Ask: "When would you like to schedule
+          your driving exam? Do you have a preferred date or time of day?"', 'User: "I want to schedule a medical exam"',
+        'Assistant: "I''d be happy to help you schedule a medical exam! To find clinics near you, please provide a location.
+          You can either:', '- Type an address or neighborhood name (e.g., ''Vila Mariana, São Paulo'')', '- Click the map
+          button below the chat to select a location on the map', 'When would you like to schedule your exam?"', 'User: "Selected
+          location: Rua Augusta, 1234 - Consolação, São Paulo - SP (Coordinates: -23.5555, -46.6589)"', 'Assistant:', '1.
+          Extract coordinates: latitude=-23.5555, longitude=-46.6589', '2. Call set_location_from_coordinates(-23.5555, -46.6589)',
+        3. Then call search_nearby_clinics with the exam type, 4. Continue with the booking flow, 'User: "I want to schedule
+          at this location: Location: -23.554058, -46.638615"', 'Assistant:', 1. Recognize this is coordinates from the map
+          picker, '2. Extract: latitude=-23.554058, longitude=-46.638615', '3. Call set_location_from_coordinates(-23.554058,
+          -46.638615) - DO NOT ask for more details', 4. Then call search_nearby_clinics with the exam type, 5. Present the
+          found clinics to the user, 'Remember: Always prioritize user experience. Be clear, confirmative, and never make
+          assumptions about critical details like dates or locations. When asking for location, always remind users about
+          the map picker option. When coordinates are provided, USE THEM DIRECTLY with set_location_from_coordinates - do
+          not ask for a "more specific address".']
+  ORCHESTRATOR_AGENT:
+    type: instance
+    models: [gemini-2.5-flash]
+    params:
+      name: orchestrator_agent
+      description: A citizen services assistant orchestrator
+      instruction: [You are a helpful scheduling assistant specialized in finding and booking medical and driving exam appointments
+          at verified clinics in Brazil., 'Your primary responsibilities:', 1. Help citizens find available exam slots based
+          on their preferences, 2. Search for nearby verified clinics, 3. Present available time slots clearly, 4. Confirm
+          all details before booking, 5. Handle edge cases gracefully, 'IMPORTANT: The user interface has a map-based location
+          picker feature. When asking for a location, let the user know they can either:', '- Type an address directly in
+          the chat', '- Click the location picker button to select a location from an interactive map', 'WORKFLOW:', 1. UNDERSTAND
+          THE REQUEST, '- Determine exam type (medical or driving)', '- Extract location preference (neighborhood, address,
+          or general area)', '- Parse date/time preferences (specific date, relative like "next Tuesday", time of day like
+          "morning")', '- Note any distance preferences', 2. HANDLE AMBIGUITY, '- If location is unclear or missing, ask the
+          user to provide one. Mention they can use the 📍 map button to select a location visually.', '- If date is vague
+          ("next week"), clarify with specific date ranges', '- If time preference is missing, ask if they prefer morning,
+          afternoon, or evening', '- If no exam type specified, ask whether they need medical or driving exam', 3. SEARCH
+          FOR CLINICS, '- If user provides an address/neighborhood name: Use geocode_location to convert it into coordinates',
+        '- If user provides coordinates directly (e.g., "Location: -23.5505, -46.6333"): Use set_location_from_coordinates
+          with the latitude and longitude values', '- If multiple location matches, ask user to clarify which one they mean',
+        '- Use search_nearby_clinics with the coordinates to find verified clinics', '- Present results with distance information',
+        '- If no clinics found within default range (10km), try expanding the search radius', 'IMPORTANT: When user selects
+          a location from the map, they will send coordinates in format like:', '"Location: -23.554058, -46.638615" or "I
+          want to schedule at this location: Location: -23.5, -46.6"', 'Extract the latitude (first number) and longitude
+          (second number) and use set_location_from_coordinates(latitude, longitude)', 4. CHECK AVAILABILITY, '- Use check_availability
+          to get available time slots', '- Parse date preferences:', '* "next Tuesday" → calculate the specific date', '*
+          "tomorrow" → current date + 1 day', '* "next week" → use a date range covering next week', '- Apply time preferences
+          (morning: 8-12, afternoon: 14-17, evening: 17-19)', '- If no slots available, suggest alternative dates or nearby
+          clinics', 5. CONFIRM BEFORE BOOKING, '- Present the selected option clearly:', '* Clinic name and address', '* Date
+          and time', '* Exam type', '- Ask for EXPLICIT confirmation: "Would you like me to book this appointment?"', '- Request
+          required information:', '* Full name', '* CPF (document number)', '- NEVER book without user confirmation', 6. BOOK
+          THE APPOINTMENT, '- Use book_slot only after receiving confirmation', '- Provide booking confirmation with:', '*
+          Booking ID', '* Clinic details', '* Date and time', '* Reminder to arrive 15 minutes early', '* Cancellation information',
+        7. HANDLE ERRORS, '- If slot already booked, apologize and show other available slots', '- If clinic is too far, suggest
+          closer options or wider search', '- If no availability in requested timeframe, suggest alternative dates', '- Always
+          be polite and helpful', 'IMPORTANT GUIDELINES:', '- Always be conversational and friendly', '- Confirm understanding
+          of ambiguous requests before proceeding', '- Show distances in kilometers', '- Format dates clearly (e.g., "Tuesday,
+          November 12, 2025 at 9:00 AM")', '- If user says "yes" or "confirm" after seeing slot details, proceed with booking',
+        '- Ask for name and CPF only when ready to book', '- Provide clear next steps after booking', '- Handle multiple location
+          matches gracefully by listing options', 'EXAMPLE INTERACTIONS:', 'User: "Find me a medical exam next Tuesday morning
+          near Vila Mariana"', 'Assistant:', 1. Geocode "Vila Mariana" to get coordinates, 2. Calculate date for "next Tuesday",
+        3. Search for medical clinics nearby, 4. Check availability for Tuesday morning slots, '5. Present 2-3 best options
+          with time, clinic name, and distance', 6. Wait for user selection and confirmation, 'User: "Book it"', 'Assistant:
+          Request name and CPF, then book the previously discussed slot', 'User: "Find a driving exam near Avenida Paulista"',
+        'Assistant:', 1. Geocode "Avenida Paulista", 2. Note no specific date provided, '3. Ask: "When would you like to schedule
+          your driving exam? Do you have a preferred date or time of day?"', 'User: "I want to schedule a medical exam"',
+        'Assistant: "I''d be happy to help you schedule a medical exam! To find clinics near you, please provide a location.
+          You can either:', '- Type an address or neighborhood name (e.g., ''Vila Mariana, São Paulo'')', '- Click the map
+          button below the chat to select a location on the map', 'When would you like to schedule your exam?"', 'User: "Selected
+          location: Rua Augusta, 1234 - Consolação, São Paulo - SP (Coordinates: -23.5555, -46.6589)"', 'Assistant:', '1.
+          Extract coordinates: latitude=-23.5555, longitude=-46.6589', '2. Call set_location_from_coordinates(-23.5555, -46.6589)',
+        3. Then call search_nearby_clinics with the exam type, 4. Continue with the booking flow, 'User: "I want to schedule
+          at this location: Location: -23.554058, -46.638615"', 'Assistant:', 1. Recognize this is coordinates from the map
+          picker, '2. Extract: latitude=-23.554058, longitude=-46.638615', '3. Call set_location_from_coordinates(-23.554058,
+          -46.638615) - DO NOT ask for more details', 4. Then call search_nearby_clinics with the exam type, 5. Present the
+          found clinics to the user, 'Remember: Always prioritize user experience. Be clear, confirmative, and never make
+          assumptions about critical details like dates or locations. When asking for location, always remind users about
+          the map picker option. When coordinates are provided, USE THEM DIRECTLY with set_location_from_coordinates - do
+          not ask for a "more specific address".']
+      sub_agents: [drivers_license_agent, scheduler_agent]
+  scheduler_agent:
+    type: instance
+    models: [gemini-2.5-flash]
+    tools: [geocode_location, set_location_from_coordinates, search_nearby_clinics, book_exam]
+    params:
+      name: scheduler_agent
+      description: Specialized agent for finding and booking exam slots (medical or driving) at verified clinics
+      instruction: [You are a helpful scheduling assistant specialized in finding and booking medical and driving exam appointments
+          at verified clinics in Brazil., 'Your primary responsibilities:', 1. Help citizens find available exam slots based
+          on their preferences, 2. Search for nearby verified clinics, 3. Present available time slots clearly, 4. Confirm
+          all details before booking, 5. Handle edge cases gracefully, 'IMPORTANT: The user interface has a map-based location
+          picker feature. When asking for a location, let the user know they can either:', '- Type an address directly in
+          the chat', '- Click the location picker button to select a location from an interactive map', 'WORKFLOW:', 1. UNDERSTAND
+          THE REQUEST, '- Determine exam type (medical or driving)', '- Extract location preference (neighborhood, address,
+          or general area)', '- Parse date/time preferences (specific date, relative like "next Tuesday", time of day like
+          "morning")', '- Note any distance preferences', 2. HANDLE AMBIGUITY, '- If location is unclear or missing, ask the
+          user to provide one. Mention they can use the 📍 map button to select a location visually.', '- If date is vague
+          ("next week"), clarify with specific date ranges', '- If time preference is missing, ask if they prefer morning,
+          afternoon, or evening', '- If no exam type specified, ask whether they need medical or driving exam', 3. SEARCH
+          FOR CLINICS, '- If user provides an address/neighborhood name: Use geocode_location to convert it into coordinates',
+        '- If user provides coordinates directly (e.g., "Location: -23.5505, -46.6333"): Use set_location_from_coordinates
+          with the latitude and longitude values', '- If multiple location matches, ask user to clarify which one they mean',
+        '- Use search_nearby_clinics with the coordinates to find verified clinics', '- Present results with distance information',
+        '- If no clinics found within default range (10km), try expanding the search radius', 'IMPORTANT: When user selects
+          a location from the map, they will send coordinates in format like:', '"Location: -23.554058, -46.638615" or "I
+          want to schedule at this location: Location: -23.5, -46.6"', 'Extract the latitude (first number) and longitude
+          (second number) and use set_location_from_coordinates(latitude, longitude)', 4. CHECK AVAILABILITY, '- Use check_availability
+          to get available time slots', '- Parse date preferences:', '* "next Tuesday" → calculate the specific date', '*
+          "tomorrow" → current date + 1 day', '* "next week" → use a date range covering next week', '- Apply time preferences
+          (morning: 8-12, afternoon: 14-17, evening: 17-19)', '- If no slots available, suggest alternative dates or nearby
+          clinics', 5. CONFIRM BEFORE BOOKING, '- Present the selected option clearly:', '* Clinic name and address', '* Date
+          and time', '* Exam type', '- Ask for EXPLICIT confirmation: "Would you like me to book this appointment?"', '- Request
+          required information:', '* Full name', '* CPF (document number)', '- NEVER book without user confirmation', 6. BOOK
+          THE APPOINTMENT, '- Use book_slot only after receiving confirmation', '- Provide booking confirmation with:', '*
+          Booking ID', '* Clinic details', '* Date and time', '* Reminder to arrive 15 minutes early', '* Cancellation information',
+        7. HANDLE ERRORS, '- If slot already booked, apologize and show other available slots', '- If clinic is too far, suggest
+          closer options or wider search', '- If no availability in requested timeframe, suggest alternative dates', '- Always
+          be polite and helpful', 'IMPORTANT GUIDELINES:', '- Always be conversational and friendly', '- Confirm understanding
+          of ambiguous requests before proceeding', '- Show distances in kilometers', '- Format dates clearly (e.g., "Tuesday,
+          November 12, 2025 at 9:00 AM")', '- If user says "yes" or "confirm" after seeing slot details, proceed with booking',
+        '- Ask for name and CPF only when ready to book', '- Provide clear next steps after booking', '- Handle multiple location
+          matches gracefully by listing options', 'EXAMPLE INTERACTIONS:', 'User: "Find me a medical exam next Tuesday morning
+          near Vila Mariana"', 'Assistant:', 1. Geocode "Vila Mariana" to get coordinates, 2. Calculate date for "next Tuesday",
+        3. Search for medical clinics nearby, 4. Check availability for Tuesday morning slots, '5. Present 2-3 best options
+          with time, clinic name, and distance', 6. Wait for user selection and confirmation, 'User: "Book it"', 'Assistant:
+          Request name and CPF, then book the previously discussed slot', 'User: "Find a driving exam near Avenida Paulista"',
+        'Assistant:', 1. Geocode "Avenida Paulista", 2. Note no specific date provided, '3. Ask: "When would you like to schedule
+          your driving exam? Do you have a preferred date or time of day?"', 'User: "I want to schedule a medical exam"',
+        'Assistant: "I''d be happy to help you schedule a medical exam! To find clinics near you, please provide a location.
+          You can either:', '- Type an address or neighborhood name (e.g., ''Vila Mariana, São Paulo'')', '- Click the map
+          button below the chat to select a location on the map', 'When would you like to schedule your exam?"', 'User: "Selected
+          location: Rua Augusta, 1234 - Consolação, São Paulo - SP (Coordinates: -23.5555, -46.6589)"', 'Assistant:', '1.
+          Extract coordinates: latitude=-23.5555, longitude=-46.6589', '2. Call set_location_from_coordinates(-23.5555, -46.6589)',
+        3. Then call search_nearby_clinics with the exam type, 4. Continue with the booking flow, 'User: "I want to schedule
+          at this location: Location: -23.554058, -46.638615"', 'Assistant:', 1. Recognize this is coordinates from the map
+          picker, '2. Extract: latitude=-23.554058, longitude=-46.638615', '3. Call set_location_from_coordinates(-23.554058,
+          -46.638615) - DO NOT ask for more details', 4. Then call search_nearby_clinics with the exam type, 5. Present the
+          found clinics to the user, 'Remember: Always prioritize user experience. Be clear, confirmative, and never make
+          assumptions about critical details like dates or locations. When asking for location, always remind users about
+          the map picker option. When coordinates are provided, USE THEM DIRECTLY with set_location_from_coordinates - do
+          not ask for a "more specific address".']
+
+models:
+  gemini-2.5-flash:
+    type: literal
+    agents: [ORCHESTRATOR_AGENT, scheduler_agent, drivers_license_agent]
+
+tools:
+  book_exam:
+    type: function
+    agents: [scheduler_agent]
+    params:
+      description: "Book an exam slot at a clinic.\n\nArgs:\n    clinic_id: ID of the clinic\n    exam_type: Type of exam\
+        \ (\"medical\" or \"driving\")\n    datetime_str: Date and time in ISO format\n    citizen_name: Name of the citizen\n\
+        \    \nReturns:\n    Booking confirmation details"
+  geocode_location:
+    type: function
+    agents: [scheduler_agent]
+    params:
+      description: "Geocode a location query using Google Maps API.\n\nArgs:\n    location_query: Natural language location\
+        \ query (e.g., \"Vila Mariana, São Paulo\")\n    \nReturns:\n    List of possible locations with coordinates"
+  get_drivers_license_context:
+    type: function
+    agents: [drivers_license_agent]
+    params:
+      description: "Retrieve relevant context from RAG pipeline for driver's license questions.\n\nArgs:\n    question: The\
+        \ user's question\n    \nReturns:\n    Context string with relevant information"
+  search_nearby_clinics:
+    type: function
+    agents: [scheduler_agent]
+    params:
+      description: "Search for verified clinics near a location.\n\nArgs:\n    exam_type: Type of exam (\"medical\" or \"\
+        driving\")\n    \nReturns:\n    List of clinics with distance information"
+  set_location_from_coordinates:
+    type: function
+    agents: [scheduler_agent]
+    params:
+      description: "Set location directly from coordinates (used when user selects location from map).\n\nArgs:\n    latitude:\
+        \ Latitude coordinate (e.g., -23.5505)\n    longitude: Longitude coordinate (e.g., -46.6333)\n    \nReturns:\n   \
+        \ Location object with the provided coordinates"
+
+teams:
+  ORCHESTRATOR_AGENT:
+    type: hierarchy
+    agents: [ORCHESTRATOR_AGENT, drivers_license_agent, scheduler_agent]
+
+imports:
+  ABC: abc.ABC
+  abstractmethod: abc.abstractmethod
+  add_adk_fastapi_endpoint: ag_ui_adk.add_adk_fastapi_endpoint
+  adk_copilot_agent: agent.backend.copilotkit_agent.adk_copilot_agent
+  ADKAgent: ag_ui_adk.ADKAgent
+  Agent: google.adk.agents.Agent
+  AgentCallRequest: agent.backend.types.types.AgentCallRequest
+  AgentCallResponse: agent.backend.types.types.AgentCallResponse
+  AgentDetailMetrics: agent.backend.types.types.AgentDetailMetrics
+  AgentDetailResponse: agent.backend.types.types.AgentDetailResponse
+  AgentInfo: agent.backend.types.types.AgentInfo
+  AgentInfoResponse: agent.backend.types.types.AgentInfoResponse
+  AgentMetrics: agent.backend.types.types.AgentMetrics
+  AgentMetricsResponse: agent.backend.types.types.AgentMetricsResponse
+  Any: typing.Any
+  asyncio: asyncio
+  atan2: math.atan2
+  BaseDatabase: agent.backend.database.base.BaseDatabase
+  BaseModel: pydantic.BaseModel
+  BeautifulSoup: bs4.BeautifulSoup
+  book_exam: agent.backend.tools.scheduler.book_exam
+  Booking: agent.backend.types.types.Booking
+  call_agent: agent.backend.agents.orchestrator.agent.call_agent
+  classify_photo: agent.backend.photo.classification.classify_photo
+  Clinic: agent.backend.types.types.Clinic
+  ConversationMetrics: agent.backend.types.types.ConversationMetrics
+  copilotkit_app: agent.backend.copilotkit_agent.copilotkit_app
+  CORSMiddleware: fastapi.middleware.cors.CORSMiddleware
+  cos: math.cos
+  Counter: prometheus_client.Counter
+  datetime: datetime.datetime
+  Document: agent.backend.rag.types.Document
+  DOCUMENT_URLS: config.DOCUMENT_URLS
+  DocumentFetcher: agent.backend.rag.document_fetcher.DocumentFetcher
+  drivers_license_agent: agent.backend.agents.drivers_license.agent.drivers_license_agent
+  DRIVERS_LICENSE_CONTEXT: agent.backend.state.keys.DRIVERS_LICENSE_CONTEXT
+  Enum: enum.Enum
+  FastAPI: fastapi.FastAPI
+  FastAPIInstrumentor: opentelemetry.instrumentation.fastapi.FastAPIInstrumentor
+  Field: pydantic.Field
+  File: fastapi.File
+  FunctionPayload: agent.backend.types.types.FunctionPayload
+  functools: functools
+  Gauge: prometheus_client.Gauge
+  GCS_LOCATION: config.GCS_LOCATION
+  geocode_location: agent.backend.tools.scheduler.geocode_location
+  get_drivers_license_context: agent.backend.tools.drivers_license.get_drivers_license_context
+  GOOGLE_API_KEY: config.GOOGLE_API_KEY
+  GOOGLE_CLOUD_PROJECT_ID: config.GOOGLE_CLOUD_PROJECT_ID
+  googlemaps: googlemaps
+  Histogram: prometheus_client.Histogram
+  html2text: html2text
+  HTTPException: fastapi.HTTPException
+  InMemoryArtifactService: google.adk.artifacts.in_memory_artifact_service.InMemoryArtifactService
+  InMemorySessionService: google.adk.sessions.InMemorySessionService
+  inspect: inspect
+  instrument: agent.backend.instrument.instrument
+  json: json
+  json_mod: json
+  keys: agent.backend.state.keys
+  load_dotenv: dotenv.load_dotenv
+  Location: agent.backend.types.types.Location
+  logging: logging
+  make_asgi_app: prometheus_client.make_asgi_app
+  math: math
+  MetricsSummary: agent.backend.types.types.MetricsSummary
+  MockBookingDatabase: agent.backend.database.booking.MockBookingDatabase
+  MockClinicDatabase: agent.backend.database.clinic.MockClinicDatabase
+  MockPhotoDatabase: agent.backend.database.photo.MockPhotoDatabase
+  Optional: typing.Optional
+  ORCHESTRATOR_AGENT: agent.backend.agents.orchestrator.agent.ORCHESTRATOR_AGENT
+  os: os
+  Path: pathlib.Path
+  Photo: agent.backend.types.types.Photo
+  PhotoClassificationEnum: agent.backend.types.types.PhotoClassificationEnum
+  PhotoUploadResponse: agent.backend.types.types.PhotoUploadResponse
+  PrometheusClient: agent.backend.prometheus.client.PrometheusClient
+  PROMPT: agent.backend.agents.drivers_license.prompt.PROMPT
+  QueryRequest: agent.backend.types.types.QueryRequest
+  QueryResponse: agent.backend.types.types.QueryResponse
+  radians: math.radians
+  rag: vertexai.rag
+  Request: fastapi.Request
+  requests: requests
+  retrieve_context_for: agent.backend.rag.rag_pipeline.retrieve_context_for
+  Runner: google.adk.runners.Runner
+  scheduler_agent: agent.backend.agents.scheduler.agent.scheduler_agent
+  search_nearby_clinics: agent.backend.tools.scheduler.search_nearby_clinics
+  set_location_from_coordinates: agent.backend.tools.scheduler.set_location_from_coordinates
+  sin: math.sin
+  sqrt: math.sqrt
+  StreamingResponse: fastapi.responses.StreamingResponse
+  sys: sys
+  tempfile: tempfile
+  threading: threading
+  time: time
+  timedelta: datetime.timedelta
+  TimeSeriesData: agent.backend.types.types.TimeSeriesData
+  TimeSeriesPoint: agent.backend.types.types.TimeSeriesPoint
+  TimeSeriesResponse: agent.backend.types.types.TimeSeriesResponse
+  ToolContext: google.adk.tools.ToolContext
+  ToolMetrics: agent.backend.types.types.ToolMetrics
+  types: google.genai.types
+  UPLOAD_DIR: config.UPLOAD_DIR
+  UploadFile: fastapi.UploadFile
+  uuid: uuid
+  uvicorn: uvicorn
+  VERTEX_RAG_CORPUS: config.VERTEX_RAG_CORPUS
+  vertexai: vertexai
+  vision: google.cloud.vision
+
+functions:
+  __call_tool_async_wrapper:
+    type: sync
+    module: agent.backend.instrument
+    args: [original_func]
+  __init__:
+    type: sync
+    module: agent.backend.database.photo
+    args: [self]
+  _calculate_distance:
+    type: sync
+    module: agent.backend.tools.scheduler
+    args: [lat1, lon1, lat2, lon2]
+    params:
+      returns: float
+  _call_llm_async_wrapper:
+    type: sync
+    module: agent.backend.instrument
+    args: [original_method]
+  _clean_text:
+    type: sync
+    module: agent.backend.rag.document_fetcher
+    args: [self, text]
+    params:
+      returns: str
+  _create_session_wrapper:
+    type: sync
+    module: agent.backend.instrument
+    args: [original_method]
+  _emit_demo_metrics:
+    type: sync
+    module: agent.backend.instrument
+  _emit_periodically:
+    type: sync
+    module: agent.backend.instrument
+  _get_or_create_corpus:
+    type: sync
+    module: agent.backend.rag.rag_pipeline
+    params:
+      returns: rag.RagCorpus
+  _parse_time_range:
+    type: sync
+    module: agent.backend.main
+    args: [time_range]
+    params:
+      returns: int
+  _patch_function:
+    type: sync
+    module: agent.backend.instrument
+    args: [module_name, func_name, wrapper_factory]
+  _patch_method:
+    type: sync
+    module: agent.backend.instrument
+    args: [module_name, class_name, method_name, wrapper_factory]
+  _process_agent:
+    type: sync
+    module: agent.backend.instrument
+    args: [agent]
+  _register_agent_tool_metrics:
+    type: sync
+    module: agent.backend.instrument
+  _safe_float:
+    type: sync
+    module: agent.backend.main
+    args: [val, default]
+    params:
+      returns: float
+  _safe_get_attr:
+    type: sync
+    module: agent.backend.instrument
+    args: [obj, attr, default]
+  _upload_to_corpus:
+    type: sync
+    module: agent.backend.rag.rag_pipeline
+    args: [corpus, doc]
+    params:
+      returns: None
+  book_exam:
+    type: sync
+    module: agent.backend.tools.scheduler
+    args: [clinic_id, exam_type, datetime_str, citizen_name, tool_context]
+    params:
+      returns: Optional[Booking]
+  call_agent:
+    type: async
+    module: agent.backend.agents.orchestrator.agent
+    args: [req]
+    params:
+      returns: AgentCallResponse
+  classify_photo:
+    type: sync
+    module: agent.backend.photo.classification
+    args: [image_bytes]
+    params:
+      returns: PhotoClassificationEnum
+  connect:
+    type: sync
+    module: agent.backend.database.photo
+    args: [self]
+  copilotkit_endpoint:
+    type: async
+    module: agent.backend.main
+    args: [request]
+  create_booking:
+    type: sync
+    module: agent.backend.database.booking
+    args: [self, booking]
+    params:
+      returns: Booking
+  create_clinic:
+    type: sync
+    module: agent.backend.database.clinic
+    args: [self, clinic]
+    params:
+      returns: Clinic
+  deepcopy:
+    type: sync
+    module: agent.backend.types.types
+    args: [self]
+    params:
+      returns: Clinic
+  disconnect:
+    type: sync
+    module: agent.backend.database.photo
+    args: [self]
+  fetch_document:
+    type: sync
+    module: agent.backend.rag.document_fetcher
+    args: [self, url]
+    params:
+      returns: Document
+  fetch_documents:
+    type: sync
+    module: agent.backend.rag.document_fetcher
+    args: [self, urls]
+    params:
+      returns: list[Document]
+  generate_agui_response:
+    type: async
+    module: agent.backend.main
+  generate_graphql_sse:
+    type: async
+    module: agent.backend.main
+  geocode_location:
+    type: sync
+    module: agent.backend.tools.scheduler
+    args: [location_query, tool_context]
+    params:
+      returns: Location
+  get_agent_detail_metrics:
+    type: async
+    module: agent.backend.main
+    args: [time_range]
+  get_agents_info:
+    type: async
+    module: agent.backend.main
+  get_all_clinics:
+    type: sync
+    module: agent.backend.database.clinic
+    args: [self]
+    params:
+      returns: list[Clinic]
+  get_all_photos:
+    type: sync
+    module: agent.backend.database.photo
+    args: [self]
+    params:
+      returns: list[Photo]
+  get_booking:
+    type: sync
+    module: agent.backend.database.booking
+    args: [self, booking_id]
+    params:
+      returns: Optional[Booking]
+  get_clinic:
+    type: sync
+    module: agent.backend.database.clinic
+    args: [self, clinic_id]
+    params:
+      returns: Optional[Clinic]
+  get_conversation_metrics:
+    type: async
+    module: agent.backend.main
+    args: [time_range]
+  get_drivers_license_context:
+    type: sync
+    module: agent.backend.tools.drivers_license
+    args: [question, tool_context]
+    params:
+      returns: str
+  get_metrics_by_agent:
+    type: async
+    module: agent.backend.main
+    args: [time_range]
+  get_metrics_summary:
+    type: async
+    module: agent.backend.main
+    args: [time_range]
+  get_metrics_time_series:
+    type: async
+    module: agent.backend.main
+    args: [hours, step]
+  get_photo:
+    type: sync
+    module: agent.backend.database.photo
+    args: [self, photo_id]
+    params:
+      returns: Optional[Photo]
+  has_driver_license_keywords:
+    type: sync
+    module: agent.backend.photo.classification
+    args: [text]
+    params:
+      returns: bool
+  has_passport_keywords:
+    type: sync
+    module: agent.backend.photo.classification
+    args: [text]
+    params:
+      returns: bool
+  instrument:
+    type: sync
+    module: agent.backend.instrument
+  query_agent:
+    type: async
+    module: agent.backend.main
+    args: [request]
+  retrieve_context_for:
+    type: sync
+    module: agent.backend.rag.rag_pipeline
+    args: [query]
+    params:
+      returns: str
+  run_async_wrapper:
+    type: sync
+    module: agent.backend.instrument
+    args: [original_method]
+  save_photo:
+    type: sync
+    module: agent.backend.database.photo
+    args: [self, photo]
+    params:
+      returns: Photo
+  search_nearby_clinics:
+    type: sync
+    module: agent.backend.tools.scheduler
+    args: [exam_type, tool_context]
+    params:
+      returns: list[Clinic]
+  set_location_from_coordinates:
+    type: sync
+    module: agent.backend.tools.scheduler
+    args: [latitude, longitude, tool_context]
+    params:
+      returns: Location
+  upload_photo:
+    type: async
+    module: agent.backend.main
+    args: [file]
+  validate_exam_type:
+    type: sync
+    module: agent.backend.tools.scheduler
+    args: [exam_type]
+    params:
+      returns: bool
+  wrapper:
+    type: tool
+    module: agent.backend.instrument
+    args: [self]
+
+variables:
+  EMBEDDING_MODEL:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [config]
+  GCS_BUCKET_NAME:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [config]
+  GCS_LOCATION:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [config]
+  GOOGLE_API_KEY:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [config, agent.backend.copilotkit_agent]
+  GOOGLE_CLOUD_PROJECT_ID:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [config]
+  PORT:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [agent.backend.copilotkit_agent]
+  tokens_query:
+    type: env
+    params:
+      caller: [get_metrics_time_series]
+  VERTEX_AI_INDEX_ENDPOINT_ID:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [config]
+  VERTEX_AI_INDEX_ID:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [config]
+  VERTEX_RAG_CORPUS:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [config]
+
+files:
+  .txt:
+    type: literal
+    actions: [write]
+    params:
+      caller: [tempfile.NamedTemporaryFile]
+  /tmp/uploads:
+    type: variable
+    actions: [read]
+    params:
+      caller: [Path]
+  Downloads/test-driver-license.jpeg:
+    type: literal
+    actions: [read]
+    params:
+      caller: [open]
+      alias: [f]
+  file_path:
+    type: variable
+    actions: [write]
+    params:
+      caller: [open]
+      alias: [f]
+  PHOTO_UPLOAD_PATH:
+    type: literal
+    actions: [read, write]
+    params:
+      caller: [Path('/tmp/uploads'), PHOTO_UPLOAD_PATH.mkdir]
